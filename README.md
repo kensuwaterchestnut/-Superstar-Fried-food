@@ -2,58 +2,81 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>啃酥叫貨通知發送</title>
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <title>啃酥叫貨通知</title>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background-color: #f5f5f5;
+      padding: 30px;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 6px;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #458500;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-  <h2>發送叫貨通知</h2>
-  <form id="form">
-    <label>訂單時間：<input name="order_time" required></label><br>
-    <label>訂單編號：<input name="order_id" required></label><br>
-    <label>Email：<input name="email" required></label><br>
-    <label>分店名稱：<input name="store_name" required></label><br>
-    <label>寄貨方式：<input name="delivery_method" required></label><br>
-    <label>取貨備註：<input name="pickup_note"></label><br>
-    <label>商品明細（JSON）：<textarea name="orders" required></textarea></label><br>
-    <label>運費：<input name="cost_shipping" required></label><br>
-    <label>總金額：<input name="cost_total" required></label><br>
+  <h2>啃酥叫貨通知</h2>
+  <form id="orderForm">
+    <label for="order_time">訂單時間：</label>
+    <input type="text" name="order_time" id="order_time" required>
+
+    <label for="order_id">訂單編號：</label>
+    <input type="text" name="order_id" id="order_id" required>
+
+    <label for="email">Email：</label>
+    <input type="email" name="email" id="email" required>
+
+    <label for="store_name">分店名稱：</label>
+    <input type="text" name="store_name" id="store_name" required>
+
+    <label for="delivery_method">寄貨方式：</label>
+    <input type="text" name="delivery_method" id="delivery_method">
+
+    <label for="pickup_note">取貨備註：</label>
+    <input type="text" name="pickup_note" id="pickup_note">
+
+    <label for="orders">商品明細（JSON）：</label>
+    <textarea name="orders" id="orders" rows="6" required></textarea>
+
+    <label for="cost_shipping">運費：</label>
+    <input type="text" name="cost_shipping" id="cost_shipping">
+
+    <label for="cost_total">總金額：</label>
+    <input type="text" name="cost_total" id="cost_total">
 
     <button type="submit">送出通知</button>
   </form>
 
   <script>
-    (function () {
-      emailjs.init("YOUR_PUBLIC_KEY"); // ← 換成你的公開金鑰
-    })();
+    // 初始化 EmailJS
+    emailjs.init("nMamM2Ecz2ztnkCOV"); // ✅ 這裡是你提供的 API 金鑰
 
-    document.getElementById('form').addEventListener('submit', function (e) {
+    document.getElementById("orderForm").addEventListener("submit", function (e) {
       e.preventDefault();
 
-      const formData = new FormData(this);
-      const data = Object.fromEntries(formData.entries());
-
-      // 將 cost 與 orders 轉為嵌套物件格式
-      data.cost = {
-        shipping: data.cost_shipping,
-        total: data.cost_total
-      };
-
-      try {
-        data.orders = JSON.parse(data.orders); // ← 使用者需輸入 JSON 格式，如：[{"name":"菱角酥","units":3,"price":90}]
-      } catch (e) {
-        alert("商品明細格式錯誤，請使用 JSON 格式！");
-        return;
-      }
-
-      // 移除 cost_shipping / cost_total 多餘欄位
-      delete data.cost_shipping;
-      delete data.cost_total;
-
-      emailjs.send("default_service", "template_ceydmzp", data)
+      // 送出郵件
+      emailjs.sendForm("service_ov4783q", "template_ceydmzp", this)
         .then(function () {
-          alert("叫貨通知信已發送！");
-        }, function (err) {
-          alert("發送失敗：" + JSON.stringify(err));
+          alert("✅ 通知信已成功發送！");
+        }, function (error) {
+          alert("❌ 發送失敗：" + JSON.stringify(error));
         });
     });
   </script>

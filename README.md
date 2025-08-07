@@ -13,16 +13,16 @@
         const params = new URLSearchParams(window.location.search);
 
         const templateParams = {
-          order_time: params.get("order_time"),
-          order_id: params.get("order_id"),
-          email: params.get("email"),
-          store_name: params.get("store_name"),
-          product_list: params.get("product_list"),
-          shipping_method: params.get("shipping_method"),
-          pickup_note: params.get("pickup_note"),
-          shipping_fee: params.get("shipping_fee"),
-          total: params.get("total"),
-        };
+  order_time: params.get("order_time"),
+  order_id: params.get("order_id"),
+  email: params.get("email"),
+  store_name: params.get("store_name"),
+  order_details: params.get("order_details"),
+  delivery_method: params.get("delivery_method"), 
+  pickup_note: params.get("pickup_note"),
+  shipping: params.get("shipping"),
+  total: params.get("total")
+};
 
         emailjs
           .send("service_ov4783q", "template_ceydmzp", templateParams)

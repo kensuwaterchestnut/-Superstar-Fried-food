@@ -6,29 +6,36 @@
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
     <script>
       (function () {
-        emailjs.init("nMamM2Ecz2ztnkCOV"); // ⬅️ 你的 EmailJS 公鑰
+        emailjs.init("nMamM2Ecz2ztnkCOV"); // ⬅️ 替換成你的 EmailJS 公鑰
       })();
 
       window.onload = function () {
         const params = new URLSearchParams(window.location.search);
 
         const templateParams = {
-  order_time: params.get("order_time"),
-  order_id: params.get("order_id"),
-  email: params.get("email"),
-  store_name: params.get("store_name"),
-  order_details: params.get("order_details"),
-  delivery_method: params.get("delivery_method"), 
-  pickup_note: params.get("pickup_note"),
-  shipping: params.get("shipping"),
-  total: params.get("total")
-};
+          order_time: params.get("order_time"),
+          order_id: params.get("order_id"),
+          email: params.get("email"),
+          store_name: params.get("store_name"),
+          order_details: params.get("order_details"),
+          delivery_method: params.get("delivery_method"),
+          pickup_note: params.get("pickup_note"),
+          shipping: params.get("shipping"),
+          total: params.get("total")
+        };
+
+        console.log("送出的資料內容：", templateParams); // ← 除錯用，可移除
 
         emailjs
           .send("service_ov4783q", "template_ceydmzp", templateParams)
           .then(function (response) {
             document.getElementById("status").innerHTML =
               "✅ 訂單已成功通知總部！";
+
+            // ✅ 成功後幾秒自動跳轉（可選）
+            // setTimeout(function () {
+            //   window.location.href = "https://你的官網或感謝頁";
+            // }, 3000);
           })
           .catch(function (error) {
             document.getElementById("status").innerHTML =

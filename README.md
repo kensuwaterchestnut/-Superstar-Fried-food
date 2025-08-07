@@ -1,57 +1,67 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>訂單送出中...</title>
+  <meta charset="UTF-8">
+  <title>正在通知總部...</title>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@2.4.1/dist/email.min.js"></script>
   <style>
     body {
       background-color: #111;
       color: #fff;
-      font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
+      font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+      text-align: center;
+      padding: 80px 20px;
     }
     h1 {
-      font-size: 2rem;
-      color: #00f7ff;
-      margin-bottom: 1rem;
+      font-size: 28px;
+      margin-bottom: 10px;
     }
     p {
-      font-size: 1.2rem;
-      color: #ccc;
+      font-size: 16px;
+      color: #aaa;
     }
-    .loader {
+    .success {
+      color: #4caf50;
       margin-top: 30px;
-      border: 6px solid #333;
-      border-top: 6px solid #00f7ff;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
     }
   </style>
-  <script>
-    // 跳轉連結設定在這裡 ↓↓↓
-    const redirectUrl = "https://script.google.com/macros/s/AKfycbz9ZWoO764fjcRI0AN5yv9M-xyP6xf_9O6hd0Tg0q0BvpAmbMAfZCqL6Dg1SY5_rgFe/exec";
-
-    // 自動跳轉
-    setTimeout(() => {
-      window.location.href = redirectUrl;
-    }, 1500);
-  </script>
 </head>
 <body>
-  <h1>訂單送出中...</h1>
-  <p>請稍候，我們正在通知總部準備出貨 🚚</p>
-  <div class="loader"></div>
+  <h1>訂單正在通知總部中…</h1>
+  <p>請稍候，我們正在處理您的訂單資訊。</p>
+
+  <p id="status" class="success"></p>
+
+  <script>
+    // 初始化 emailjs
+    (function(){
+      emailjs.init("nMamM2Ecz2ztnkCOV");
+    })();
+
+    // 從網址抓參數
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name) || '';
+    }
+
+    // 將網址參數組合成變數
+    const templateParams = {
+      branch: getQueryParam("branch"),
+      detail: getQueryParam("detail"),
+      email: getQueryParam("email"),
+      shipping: getQueryParam("shipping"),
+      note: getQueryParam("note"),
+      freight: getQueryParam("freight"),
+      total: getQueryParam("total"),
+    };
+
+    // 寄送 Email
+    emailjs.send("service_ov4783q", "template_ceydmzp", templateParams)
+      .then(function(response) {
+          document.getElementById("status").innerText = "✅ 訂單通知已寄出！";
+      }, function(error) {
+          document.getElementById("status").innerText = "❌ 發送失敗，請稍後重試";
+      });
+  </script>
 </body>
 </html>

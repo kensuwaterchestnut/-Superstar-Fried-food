@@ -13,16 +13,16 @@
         const params = new URLSearchParams(window.location.search);
 
         const templateParams = {
-          order_time: 1111
-          order_id: 1111
-          email: 11111
-          store_name: 1111
-          order_details: 111
-          delivery_method: params.get("delivery_method"),
-          pickup_note: params.get("pickup_note"),
-          shipping: params.get("shipping"),
-          total: params.get("total")
-        };
+  order_time: "2025-08-07 19:45",
+  order_id: "TEST-00001",
+  email: "kensu.water.chestnut@gmail.com",  // ✅ 合法 Email
+  store_name: "台中一中店",
+  order_details: "菱角酥x2、芋泥酥x1",
+  delivery_method: "宅配",
+  pickup_note: "晚上收貨",
+  shipping: "150",
+  total: "750"
+};
 
         console.log("送出的資料內容：", templateParams); // ← 除錯用，可移除
 

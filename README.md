@@ -1,84 +1,78 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <title>啃酥叫貨通知</title>
+  <meta charset="UTF-8">
+  <title>訂單確認頁面</title>
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      background-color: #f5f5f5;
-      padding: 30px;
-    }
-    label {
-      display: block;
-      margin-top: 10px;
-      font-weight: bold;
-    }
-    input, textarea {
-      width: 100%;
-      padding: 6px;
-      font-size: 14px;
-      margin-top: 4px;
-    }
-    button {
-      margin-top: 20px;
-      padding: 10px 20px;
-      background-color: #458500;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
+    body { font-family: sans-serif; padding: 20px; background: #f2f2f2; }
+    h2 { color: #333; }
+    .box { background: white; padding: 20px; border-radius: 8px; max-width: 600px; margin: auto; }
+    .row { margin-bottom: 12px; }
+    label { font-weight: bold; }
   </style>
 </head>
 <body>
-  <h2>啃酥叫貨通知</h2>
-  <form id="orderForm">
-    <label for="order_time">訂單時間：</label>
-    <input type="text" name="order_time" id="order_time" required>
+  <div class="box">
+    <h2>訂單資訊確認</h2>
+    <div class="row"><label>訂單時間：</label><span id="order_time"></span></div>
+    <div class="row"><label>訂單編號：</label><span id="order_id"></span></div>
+    <div class="row"><label>Email：</label><span id="email"></span></div>
+    <div class="row"><label>分店名稱：</label><span id="branch"></span></div>
+    <div class="row"><label>寄貨方式：</label><span id="delivery"></span></div>
+    <div class="row"><label>取貨備註：</label><span id="pickup_note"></span></div>
+    <div class="row"><label>商品明細：</label><pre id="items_json"></pre></div>
+    <div class="row"><label>運費：</label><span id="shipping"></span></div>
+    <div class="row"><label>總金額：</label><span id="total"></span></div>
 
-    <label for="order_id">訂單編號：</label>
-    <input type="text" name="order_id" id="order_id" required>
-
-    <label for="email">Email：</label>
-    <input type="email" name="email" id="email" required>
-
-    <label for="store_name">分店名稱：</label>
-    <input type="text" name="store_name" id="store_name" required>
-
-    <label for="delivery_method">寄貨方式：</label>
-    <input type="text" name="delivery_method" id="delivery_method">
-
-    <label for="pickup_note">取貨備註：</label>
-    <input type="text" name="pickup_note" id="pickup_note">
-
-    <label for="orders">商品明細（JSON）：</label>
-    <textarea name="orders" id="orders" rows="6" required></textarea>
-
-    <label for="cost_shipping">運費：</label>
-    <input type="text" name="cost_shipping" id="cost_shipping">
-
-    <label for="cost_total">總金額：</label>
-    <input type="text" name="cost_total" id="cost_total">
-
-    <button type="submit">送出通知</button>
-  </form>
+    <button onclick="sendEmail()">✅ 確認送出通知</button>
+  </div>
 
   <script>
     // 初始化 EmailJS
-    emailjs.init("nMamM2Ecz2ztnkCOV"); // ✅ 這裡是你提供的 API 金鑰
+    emailjs.init("nMamM2Ecz2ztnkCOV");
 
-    document.getElementById("orderForm").addEventListener("submit", function (e) {
-      e.preventDefault();
+    // 從網址取得參數
+    const query = new URLSearchParams(window.location.search);
+    const order_time = query.get('order_time') || '';
+    const order_id = query.get('order_id') || '';
+    const email = query.get('email') || '';
+    const branch = query.get('branch') || '';
+    const delivery = query.get('delivery') || '';
+    const pickup_note = query.get('pickup_note') || '';
+    const items_json = query.get('items_json') || '';
+    const shipping = query.get('shipping') || '';
+    const total = query.get('total') || '';
 
-      // 送出郵件
-      emailjs.sendForm("service_ov4783q", "template_ceydmzp", this)
-        .then(function () {
-          alert("✅ 通知信已成功發送！");
-        }, function (error) {
-          alert("❌ 發送失敗：" + JSON.stringify(error));
-        });
-    });
+    // 顯示在畫面上
+    document.getElementById('order_time').textContent = order_time;
+    document.getElementById('order_id').textContent = order_id;
+    document.getElementById('email').textContent = email;
+    document.getElementById('branch').textContent = branch;
+    document.getElementById('delivery').textContent = delivery;
+    document.getElementById('pickup_note').textContent = pickup_note;
+    document.getElementById('items_json').textContent = items_json;
+    document.getElementById('shipping').textContent = shipping;
+    document.getElementById('total').textContent = total;
+
+    // 送出 EmailJS
+    function sendEmail() {
+      emailjs.send("service_ov4783q", "template_ceydmzp", {
+        order_time: order_time,
+        order_id: order_id,
+        email: email,
+        branch: branch,
+        delivery: delivery,
+        pickup_note: pickup_note,
+        items_json: items_json,
+        shipping: shipping,
+        total: total
+      }).then(function(response) {
+        alert("✅ 通知已送出成功！");
+      }, function(error) {
+        alert("❌ 發送失敗：" + JSON.stringify(error));
+      });
+    }
   </script>
 </body>
 </html>

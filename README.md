@@ -1,51 +1,65 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>送出中...</title>
+  <title>叫貨明細（預覽）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
-      background-color: #111;
-      color: white;
-      font-family: sans-serif;
-      text-align: center;
-      padding-top: 100px;
+      background-color: #121212;
+      color: #f0f0f0;
+      font-family: 'Helvetica Neue', sans-serif;
+      padding: 2em;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 1em;
+    }
+    .param-box {
+      background: #1e1e1e;
+      padding: 1em 1.5em;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(255,255,255,0.05);
+    }
+    .param-box p {
+      margin: 0.5em 0;
+      word-break: break-word;
     }
   </style>
 </head>
 <body>
-  <h1>正在送出您的訂單資料...</h1>
-  <p>請稍候，處理中</p>
+
+  <h1>叫貨明細（預覽）</h1>
+  <div class="param-box" id="paramsBox">
+    讀取中...
+  </div>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const data = {};
-
-    for (const [key, value] of params.entries()) {
-      data[key] = value;
+    function parseCustomQueryParams() {
+      const params = {};
+      const query = window.location.search.substring(1);
+      const pairs = query.split('&');
+      for (let i = 0; i < pairs.length; i++) {
+        const pair = pairs[i].split('=');
+        const value = decodeURIComponent(pair[0] || '');
+        const key = decodeURIComponent(pair[1] || '未命名欄位');
+        if (key) {
+          params[key] = value;
+        }
+      }
+      return params;
     }
 
-    // 呼叫 Google Apps Script Web App
-    fetch("https://script.google.com/macros/s/AKfycbyQNTF0rHwaTR-rBaTnnOvi-yipqqCaPH2w9NvHFofZn0b9vCgdkS7tpGUo38uiysQS/exec", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(data)
-    })
-    .then(response => {
-      if (response.ok) {
-        console.log("✅ 成功送出");
-        document.body.innerHTML = "<h1>✅ 訂單送出成功！</h1><p>我們已收到您的資料</p>";
-      } else {
-        console.error("❌ 傳送失敗");
-        document.body.innerHTML = "<h1>❌ 傳送失敗</h1><p>請稍後再試，或聯絡客服</p>";
-      }
-    })
-    .catch(error => {
-      console.error("❌ 發生錯誤", error);
-      document.body.innerHTML = "<h1>❌ 系統錯誤</h1><p>請稍後再試</p>";
-    });
+    const params = parseCustomQueryParams();
+    const box = document.getElementById('paramsBox');
+    box.innerHTML = ''; // 清空預設文字
+
+    for (const key in params) {
+      const p = document.createElement('p');
+      p.innerHTML = `<strong>【${key}】</strong>：${params[key] || '（空）'}`;
+      box.appendChild(p);
+    }
   </script>
+
 </body>
 </html>

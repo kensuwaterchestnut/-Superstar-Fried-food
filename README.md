@@ -1,40 +1,51 @@
-<script>
-  // Step 1: 解析網址參數
-  function parseQueryParams() {
-    const params = {};
-    const query = window.location.search.substring(1);
-    const pairs = query.split('&');
-    for (const pair of pairs) {
-      const [key, value] = pair.split('=');
-      if (key) {
-        params[decodeURIComponent(key)] = decodeURIComponent(value || '');
-      }
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>送出中...</title>
+  <style>
+    body {
+      background-color: #111;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding-top: 100px;
     }
-    return params;
-  }
+  </style>
+</head>
+<body>
+  <h1>正在送出您的訂單資料...</h1>
+  <p>請稍候，處理中</p>
 
-  // Step 2: 傳送資料到 Web App
-  function sendToWebApp(data) {
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const data = {};
+
+    for (const [key, value] of params.entries()) {
+      data[key] = value;
+    }
+
+    // 呼叫 Google Apps Script Web App
     fetch("https://script.google.com/macros/s/AKfycbyQNTF0rHwaTR-rBaTnnOvi-yipqqCaPH2w9NvHFofZn0b9vCgdkS7tpGUo38uiysQS/exec", {
-      method: 'POST',
-      body: JSON.stringify(data),
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
-      }
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
     })
     .then(response => {
       if (response.ok) {
-        console.log("✅ Web App 收到訂單資料！");
+        console.log("✅ 成功送出");
+        document.body.innerHTML = "<h1>✅ 訂單送出成功！</h1><p>我們已收到您的資料</p>";
       } else {
-        console.error("❌ Web App 回傳錯誤", response.status);
+        console.error("❌ 傳送失敗");
+        document.body.innerHTML = "<h1>❌ 傳送失敗</h1><p>請稍後再試，或聯絡客服</p>";
       }
     })
     .catch(error => {
-      console.error("❌ 傳送到 Web App 失敗", error);
+      console.error("❌ 發生錯誤", error);
+      document.body.innerHTML = "<h1>❌ 系統錯誤</h1><p>請稍後再試</p>";
     });
-  }
-
-  // Step 3: 執行流程
-  const queryParams = parseQueryParams();
-  sendToWebApp(queryParams);
-</script>
+  </script>
+</body>
+</html>

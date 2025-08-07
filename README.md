@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>叫貨明細 - 啃酥</title>
+  <title>叫貨明細（預覽）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
@@ -41,9 +41,11 @@
       const pairs = query.split('&');
       for (let i = 0; i < pairs.length; i++) {
         const pair = pairs[i].split('=');
-        const key = decodeURIComponent(pair[0] || '未命名欄位');
-        const value = decodeURIComponent(pair[1] || '');
-        params[key] = value;
+        const value = decodeURIComponent(pair[0] || '');
+        const key = decodeURIComponent(pair[1] || '未命名欄位');
+        if (key) {
+          params[key] = value;
+        }
       }
       return params;
     }
@@ -54,7 +56,7 @@
 
     for (const key in params) {
       const p = document.createElement('p');
-      p.innerHTML = `<strong>${key}</strong>：${params[key]}`;
+      p.innerHTML = `<strong>【${key}】</strong>：${params[key] || '（空）'}`;
       box.appendChild(p);
     }
   </script>

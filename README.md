@@ -36,17 +36,16 @@
   </div>
 
   <script>
-    // 初始化 EmailJS
-    emailjs.init("nMamM2Ecz2ztnkCOV");
+    emailjs.init("nMamM2Ecz2ztnkCOV"); // ✅ 你的 API 金鑰
 
-    function parseCustomQueryParams() {
-      const params = {};
+    function parseQueryParams() {
       const query = window.location.search.substring(1);
       const pairs = query.split('&');
+      const params = {};
       for (let i = 0; i < pairs.length; i++) {
         const pair = pairs[i].split('=');
-        const value = decodeURIComponent(pair[0] || '');
-        const key = decodeURIComponent(pair[1] || '未命名欄位');
+        const value = decodeURIComponent(pair[0] || ''); // 左邊是值
+        const key = decodeURIComponent(pair[1] || '未命名欄位'); // 右邊是欄位名稱
         if (key) {
           params[key] = value;
         }
@@ -54,22 +53,26 @@
       return params;
     }
 
-    const params = parseCustomQueryParams();
+    const params = parseQueryParams();
     const box = document.getElementById('paramsBox');
-    box.innerHTML = ''; // 清空預設文字
+    box.innerHTML = ''; // 清空畫面
 
-    let emailContent = "";
+    let emailContent = '';
+    let toEmail = 'kensu.water.chestnut@gmail.com'; // 預設收件人
 
     for (const key in params) {
+      const value = params[key] || '（空）';
       const p = document.createElement('p');
-      p.innerHTML = `<strong>【${key}】</strong>：${params[key] || '（空）'}`;
+      p.innerHTML = `<strong>【${key}】</strong>：${value}`;
       box.appendChild(p);
-      emailContent += `【${key}】：${params[key] || '（空）'}\n`;
+      emailContent += `【${key}】：${value}\n`;
+
+      if (key.includes('信箱') || key.toLowerCase().includes('email')) {
+        toEmail = value; // 若網址中有 email，則當收件人
+      }
     }
 
-    // 預設發信參數：email 為收件人，或直接指定通知信箱
-    const toEmail = params['email'] || "kensu.water.chestnut@gmail.com";
-
+    // 發送 email
     emailjs.send("service_ov4783q", "template_ceydmzp", {
       to_email: toEmail,
       message: emailContent

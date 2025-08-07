@@ -13,9 +13,9 @@
         const params = new URLSearchParams(window.location.search);
 
         const templateParams = {
-          order_time: params.get("order_time"),
-          order_id: params.get("order_id"),
-          email: params.get("email"),
+          order_time: params.get("order_time"),11111
+          order_id: params.get("order_id"),1111
+          email: params.get("email"),1111
           store_name: params.get("store_name"),
           order_details: params.get("order_details"),
           delivery_method: params.get("delivery_method"),

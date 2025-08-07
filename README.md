@@ -7,35 +7,40 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f3f3f3;
+      background-color: #f5f5f5;
+      padding: 40px;
       color: #333;
-      padding: 20px;
     }
     .container {
       max-width: 600px;
-      margin: 40px auto;
-      background: white;
+      margin: auto;
+      background: #fff;
       padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
     }
     h2 {
-      margin-top: 0;
-      color: #444;
+      text-align: center;
+      color: #222;
     }
     .info {
       margin: 10px 0;
+      font-size: 16px;
     }
     .label {
       font-weight: bold;
+      display: inline-block;
+      width: 120px;
     }
     #send-button {
-      margin-top: 20px;
-      padding: 10px 20px;
-      background-color: black;
-      color: white;
+      margin-top: 30px;
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      background-color: #000;
+      color: #fff;
       border: none;
-      border-radius: 5px;
+      border-radius: 8px;
       cursor: pointer;
     }
     #send-button:hover {
@@ -60,23 +65,21 @@
   </div>
 
   <script>
-    // 讀取 URL 中的參數
     const params = new URLSearchParams(window.location.search);
+    const decode = (key) => decodeURIComponent(params.get(key) || '').replace(/\+/g, ' ');
 
-    // 映射參數對應到的 DOM id
     const fields = [
       "order_time", "order_id", "email", "store_name",
-      "delivery_method", "pickup_note", "order_details", "shipping", "total"
+      "delivery_method", "pickup_note", "order_details",
+      "shipping", "total"
     ];
 
     fields.forEach(field => {
-      const value = decodeURIComponent(params.get(field) || "");
-      document.getElementById(field).innerText = value;
+      document.getElementById(field).innerText = decode(field);
     });
 
-    // 後續你可在這裡加上 EmailJS 發送邏輯
-    document.getElementById("send-button").addEventListener("click", function () {
-      alert("✅ 訂單資訊確認，EmailJS 還沒串接，請確認內容是否正確。");
+    document.getElementById("send-button").addEventListener("click", () => {
+      alert("✅ 訂單資料已確認，如需通知總部請啟用 EmailJS 功能");
     });
   </script>
 </body>

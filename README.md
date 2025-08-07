@@ -13,11 +13,11 @@
         const params = new URLSearchParams(window.location.search);
 
         const templateParams = {
-          order_time: params.get("order_time"),11111
-          order_id: params.get("order_id"),1111
-          email: params.get("email"),1111
-          store_name: params.get("store_name"),
-          order_details: params.get("order_details"),
+          order_time: 1111
+          order_id: 1111
+          email: 11111
+          store_name: 1111
+          order_details: 111
           delivery_method: params.get("delivery_method"),
           pickup_note: params.get("pickup_note"),
           shipping: params.get("shipping"),

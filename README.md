@@ -24,43 +24,45 @@
       color: #4caf50;
       margin-top: 30px;
     }
+    .error {
+      color: #ff5252;
+      margin-top: 30px;
+    }
   </style>
 </head>
 <body>
   <h1>訂單正在通知總部中…</h1>
   <p>請稍候，我們正在處理您的訂單資訊。</p>
-
   <p id="status" class="success"></p>
 
   <script>
-    // 初始化 emailjs
-    (function(){
-      emailjs.init("nMamM2Ecz2ztnkCOV");
+    (function() {
+      emailjs.init("nMamM2Ecz2ztnkCOV"); // 這是你的 Public Key
     })();
 
-    // 從網址抓參數
-    function getQueryParam(name) {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get(name) || '';
+    // 抓取網址參數
+    function getParam(key) {
+      return new URLSearchParams(window.location.search).get(key) || '';
     }
 
-    // 將網址參數組合成變數
+    // 傳送參數
     const templateParams = {
-      branch: getQueryParam("branch"),
-      detail: getQueryParam("detail"),
-      email: getQueryParam("email"),
-      shipping: getQueryParam("shipping"),
-      note: getQueryParam("note"),
-      freight: getQueryParam("freight"),
-      total: getQueryParam("total"),
+      branch: getParam("branch"),
+      detail: getParam("detail"),
+      email: getParam("email"),
+      shipping: getParam("shipping"),
+      note: getParam("note"),
+      freight: getParam("freight"),
+      total: getParam("total")
     };
 
-    // 寄送 Email
+    // 使用 emailjs 寄送 email
     emailjs.send("service_ov4783q", "template_ceydmzp", templateParams)
       .then(function(response) {
-          document.getElementById("status").innerText = "✅ 訂單通知已寄出！";
+        document.getElementById("status").innerText = "✅ 訂單通知已寄出！";
       }, function(error) {
-          document.getElementById("status").innerText = "❌ 發送失敗，請稍後重試";
+        document.getElementById("status").innerText = "❌ 發送失敗，請稍後重試";
+        document.getElementById("status").className = "error";
       });
   </script>
 </body>

@@ -1,175 +1,203 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>叫貨明細</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    :root{--card-w:820px;}
-    body{font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans TC",sans-serif;
-         color:#222;margin:0;background:#f5f6f7;}
-    .wrap{max-width:var(--card-w);margin:56px auto;padding:0 16px;}
-    .card{background:#fff;border:1px solid #e6e6e6;border-radius:12px;box-shadow:0 2px 14px rgba(0,0,0,.06);padding:28px;}
-    .title{font-weight:900;font-size:34px;letter-spacing:.15em;text-align:center;margin:0 0 22px;}
-    .sub{color:#666;margin:0 0 14px 2px;}
-    table{width:100%;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;}
-    th,td{border:1px solid #eee;padding:12px 14px;vertical-align:top;font-size:15px;line-height:1.5;}
-    th{width:160px;background:#fbfbfb;text-align:left;white-space:nowrap;}
-    td.muted{color:#9aa0a6;}
-    .status{margin-top:14px;font-size:14px}
-    .status.ok{color:#2e7d32}
-    .status.warn{color:#a15c00}
-    .tag{font-size:12px;color:#9aa0a6;margin-left:8px}
-    pre#debug{display:none;margin-top:14px;padding:12px;background:#0f172a;color:#e2e8f0;border-radius:8px;overflow:auto}
+    :root{
+      --card-w: 880px;
+      --border:#e5e7eb;
+      --muted:#9ca3af;
+      --text:#111827;
+      --bg:#ffffff;
+      --shadow: 0 8px 24px rgba(0,0,0,.06);
+      --primary:#111827;
+      --ok:#059669;
+      --bad:#dc2626;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:#f8fafc;
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Noto Sans","Apple Color Emoji","Segoe UI Emoji";
+      line-height:1.6;
+    }
+    .wrap{
+      max-width:var(--card-w);
+      margin:56px auto;
+      padding:0 16px;
+    }
+    .card{
+      background:var(--bg);
+      border:1px solid var(--border);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .card-header{
+      text-align:center;
+      padding:28px 24px 8px;
+      border-bottom:1px solid var(--border);
+    }
+    .title{
+      margin:0;
+      font-size:34px;
+      letter-spacing:.08em;
+      font-weight:900;
+      color:var(--primary);
+    }
+    .card-body{ padding:22px; }
+
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      border:1px solid var(--border);
+      border-radius:10px;
+      overflow:hidden;
+    }
+    th,td{
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      border-right:1px solid var(--border);
+      vertical-align:top;
+      background:#fff;
+    }
+    th{
+      width:140px;
+      background:#f9fafb;
+      text-align:left;
+      font-weight:700;
+    }
+    tr:last-child th, tr:last-child td{ border-bottom:none; }
+    tr th:last-child, tr td:last-child{ border-right:none; }
+
+    .muted{ color:var(--muted); }
+    .nowrap{ white-space:nowrap; }
+    /* 讓商品明細可自動換行、保留斷行 */
+    .prewrap{ white-space:pre-wrap; word-break:break-word; }
+
+    .note{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-top:16px;
+      padding-left:6px;
+      border-left:4px solid var(--border);
+      color:#374151;
+      font-size:15px;
+    }
+    .ok{ color:var(--ok); }
+    .bad{ color:var(--bad); }
+    .spinner{
+      width:14px; height:14px; border:2px solid #cbd5e1; border-top-color:#64748b;
+      border-radius:50%; display:inline-block; animation:spin .8s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(1turn)}}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1 class="title">叫貨明細</h1>
-      <p class="sub">以下為本次訂單資訊：</p>
+      <div class="card-header">
+        <h1 class="title">叫貨明細</h1>
+      </div>
 
-      <table>
-        <tr><th>訂單時間</th>   <td id="order_time"     class="muted">（空）</td></tr>
-        <tr><th>訂單編號</th>   <td id="order_id"       class="muted">（空）</td></tr>
-        <tr><th>信箱</th>       <td id="email"          class="muted">（空）</td></tr>
-        <tr><th>分店名稱</th>   <td id="store_name"     class="muted">（空）</td></tr>
-        <tr><th>寄貨方式</th>   <td id="delivery_method" class="muted">（空）</td></tr>
-        <tr><th>取貨備註</th>   <td id="pickup_note"    class="muted">（空）</td></tr>
-        <tr><th>商品明細</th>   <td id="order_details"  class="muted">（空）</td></tr>
-        <tr><th>實際運費</th>   <td id="shipping"       class="muted">（空）</td></tr>
-        <tr><th>總計金額</th>   <td id="total"          class="muted">（空）</td></tr>
-      </table>
+      <div class="card-body">
+        <p class="muted">以下為本次訂單資訊：</p>
 
-      <p id="status" class="status">正在嘗試寄通知給總部… <span class="tag">(本頁不需停留即可關閉)</span></p>
-      <pre id="debug"></pre>
+        <table>
+          <tbody>
+            <tr><th class="nowrap">訂單時間</th><td id="order_time"      class="muted">(空)</td></tr>
+            <tr><th class="nowrap">訂單編號</th><td id="order_id"        class="muted">(空)</td></tr>
+            <tr><th class="nowrap">信箱</th>    <td id="email"           class="muted">(空)</td></tr>
+            <tr><th class="nowrap">分店名稱</th><td id="store_name"      class="muted">(空)</td></tr>
+            <tr><th class="nowrap">寄貨方式</th><td id="delivery_method" class="muted">(空)</td></tr>
+            <tr><th class="nowrap">取貨備註</th><td id="pickup_note"     class="muted">(空)</td></tr>
+            <tr><th class="nowrap">商品明細</th><td id="order_details"   class="muted prewrap">(空)</td></tr>
+            <tr><th class="nowrap">實際運費</th><td id="shipping"        class="muted">(空)</td></tr>
+            <tr><th class="nowrap">總計金額</th><td id="total"           class="muted">(空)</td></tr>
+          </tbody>
+        </table>
+
+        <div id="status" class="note">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>正在將這筆訂單通知總部⋯</span>
+        </div>
+      </div>
     </div>
   </div>
 
-  <script>
-  (function(){
-    "use strict";
+<script>
+(function(){
+  const WEBHOOK = 'https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf';
 
-    // 你的 Make Webhook（已填好）
-    const WEBHOOK = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf";
+  // 期望收到的英文字段
+  const keys = [
+    'order_time','order_id','email','store_name',
+    'delivery_method','pickup_note','order_details',
+    'shipping','total'
+  ];
 
-    // ===== 工具 =====
-    const esc = s => String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-    const toHtml = s => esc(s).replace(/\r\n|\r|\n/g,"<br>");
+  // 讀取網址參數：同時支援「正常」與「顛倒(k=v 其實是 v=k)」兩種格式
+  function readParams(){
+    const usp = new URLSearchParams(location.search);
+    const out = Object.fromEntries(keys.map(k => [k, '']));
 
-    // 欄位對照（支援中英、別名）
-    const labelMap = new Map(Object.entries({
-      order_time:"order_time", time:"order_time","訂單時間":"order_time",
-      order_id:"order_id", id:"order_id","訂單編號":"order_id",
-      email:"email","信箱":"email",
-      store_name:"store_name","分店名稱":"store_name",
-      delivery_method:"delivery_method","寄貨方式":"delivery_method",
-      pickup_note:"pickup_note","取貨備註":"pickup_note",
-      order_details:"order_details","商品明細":"order_details",
-      shipping:"shipping",shipping_fee:"shipping","實際運費":"shipping",
-      total:"total",total_amount:"total","總計金額":"total"
-    }));
-
-    const qs = new URLSearchParams(location.search);
-
-    // 目標資料
-    const data = {
-      order_time:"", order_id:"", email:"", store_name:"",
-      delivery_method:"", pickup_note:"", order_details:"",
-      shipping:"", total:""
-    };
-
-    // 雙向解析：key=value 或 value=欄位名 都吃
-    for (const [rawK,rawV] of qs.entries()){
-      const k=(rawK||"").trim(), v=(rawV||"").trim();
-
-      if (labelMap.has(k) && !data[labelMap.get(k)]) { // 正常
-        data[labelMap.get(k)] = v; continue;
-      }
-      if (labelMap.has(v) && !data[labelMap.get(v)]) { // 反向
-        data[labelMap.get(v)] = k; continue;
+    // 先嘗試標準 key=value
+    let matchedNormal = false;
+    for (const k of keys){
+      if (usp.has(k)){
+        out[k] = decodeURIComponent(usp.get(k) || '');
+        matchedNormal = true;
       }
     }
+    if (matchedNormal) return out;
 
-    // 先把畫面填好
-    const fill = (id,val,html=false)=>{
-      const el = document.getElementById(id);
-      if(!el) return;
-      if(val){
-        if(html) el.innerHTML = toHtml(val);
-        else { el.textContent = val; el.classList.remove("muted"); }
-      }else{
-        el.textContent = "（空）";
-        el.classList.add("muted");
+    // 若沒命中，嘗試「顛倒」：value 其實是英文 key，name 是實際值
+    // e.g.  ?2025/8/13%20...=order_time&abc@xx.com=email
+    for (const [name, value] of usp.entries()){
+      const maybeKey = decodeURIComponent(value || '');
+      if (keys.includes(maybeKey)){
+        out[maybeKey] = decodeURIComponent(name || '');
       }
-    };
+    }
+    return out;
+  }
 
-    fill("order_time",   data.order_time);
-    fill("order_id",     data.order_id);
-    fill("email",        data.email);
-    fill("store_name",   data.store_name);
-    fill("delivery_method", data.delivery_method);
-    fill("pickup_note",  data.pickup_note,  true);
-    fill("order_details",data.order_details,true);
-    fill("shipping",     data.shipping);
-    fill("total",        data.total);
+  // 將值填入表格
+  function fillTable(data){
+    for (const k of keys){
+      const el = document.getElementById(k);
+      const v = (data[k] || '').trim();
+      el.textContent = v || '(空)';
+      el.classList.toggle('muted', !v);
+    }
+  }
 
-    const statusEl = document.getElementById("status");
-    const debugEl  = document.getElementById("debug");
-
-    // 傳給 Make（你在 Make 已把這些欄位對應到 EmailJS）
-    const payload = {
-      template_id: "template_ceydmzp",
-      user_id: "nMamM2Ecz2ztnkCOV",
-      accessToken: "f5omy7Am47n3EeMYtS66J",
-      template_params: { ...data, order_details: toHtml(data.order_details) }
-    };
-
-    function sendPost(){
-      return fetch(WEBHOOK,{
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify(payload)
+  // 將資料 POST 到 Make
+  async function notifyMake(data){
+    const status = document.getElementById('status');
+    try{
+      const res = await fetch(WEBHOOK, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(data)
       });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      status.innerHTML = '✅ <span class="ok">成功</span>寄通知給總部，明細表請自行留存。';
+    }catch(err){
+      status.innerHTML = '❌ <span class="bad">失敗</span>寄通知給總部，請稍後重試或聯絡管理員。';
+      console.error('Webhook error:', err);
     }
-    function sendGetFallback(){
-      return new Promise(res=>{
-        const u = new URL(WEBHOOK);
-        for (const [k,v] of Object.entries(data)) u.searchParams.append(k,v||"");
-        u.searchParams.append("template_id", payload.template_id);
-        u.searchParams.append("user_id", payload.user_id);
-        u.searchParams.append("accessToken", payload.accessToken);
-        const img = new Image();
-        let done=false;
-        const finish=t=>{ if(!done){done=true;res(t);} };
-        img.onload = ()=>finish("img-ok");
-        img.onerror= ()=>finish("img-err");
-        img.src = u.toString();
-        setTimeout(()=>finish("timeout"), 4000);
-      });
-    }
+  }
 
-    // 送通知（先 POST，不行再用 IMG GET 備援）
-    sendPost().then(r=>{
-      if(!r.ok) throw new Error("POST "+r.status);
-      statusEl.classList.add("ok");
-      statusEl.textContent = "✅ 成功寄通知給總部，明細表請自行留存。";
-    }).catch(async err=>{
-      const tag = await sendGetFallback();
-      statusEl.classList.add("warn");
-      statusEl.textContent = (tag==="img-ok")
-        ? "⚠️ 已用備援通道送出通知，請留意信箱是否收到。"
-        : "⚠️ 網路不穩，已嘗試送出通知；請稍後再檢查信箱。";
-
-      if (qs.get("debug")==="1"){
-        debugEl.style.display="block";
-        debugEl.textContent =
-          "原始 QueryString:\n"+location.search+"\n\n"+
-          "解析後:\n"+JSON.stringify(data,null,2)+"\n\n"+
-          "錯誤: "+(err?.message||String(err))+"\n備援: "+tag;
-      }
-    });
-  })();
-  </script>
+  const data = readParams();
+  fillTable(data);
+  notifyMake(data);
+})();
+</script>
 </body>
 </html>

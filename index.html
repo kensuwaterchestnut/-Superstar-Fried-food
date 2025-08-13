@@ -44,7 +44,22 @@ h1{margin:0 0 20px;text-align:center;letter-spacing:.12em;font-weight:800;font-s
 
 <script>
 const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf";
-const zhLabelToId = {
+
+// 你提供的「Glide 英文鍵」→ 內部標準鍵
+const enToStd = {
+  order_time: 'order_time',
+  order_id: 'order_id',
+  email: 'email',
+  store_name: 'store_name',
+  delivery_method: 'delivery_method',
+  pickup_note: 'pickup_note',
+  order_details: 'orders',
+  shipping: 'shipping_fee',
+  total: 'total_amount'
+};
+
+// 中文欄位名 → 內部標準鍵（處理左右顛倒）
+const zhToStd = {
   "訂單時間": "order_time",
   "訂單編號": "order_id",
   "信箱": "email",
@@ -56,48 +71,97 @@ const zhLabelToId = {
   "總計金額": "total_amount"
 };
 
-function decode(s){ try{return decodeURIComponent((s||'').replace(/\+/g,' '));}catch{return s||'';} }
+function decode(s){
+  try { return decodeURIComponent(String(s||'').replace(/\+/g,' ')); }
+  catch { return String(s||''); }
+}
 
-function parseReversedParams(){
-  const params = {};
-  const usp = new URLSearchParams(location.search.slice(1));
-  usp.forEach((label,value)=>{
-    const key = decode(label).trim();       // 左邊是值
-    const labelDecoded = decode(value).trim(); // 右邊是欄位名
-    const id = zhLabelToId[labelDecoded];
-    if(id) params[id] = key;
+// 同時支援：1) 正常 key=value（英文鍵） 2) 左右顛倒（值=中文欄位名）
+function readParamsStd(){
+  const std = {};
+  const usp = new URLSearchParams(location.search.startsWith('?') ? location.search.slice(1) : location.search);
+
+  usp.forEach((v,k) => {
+    const key = decode(k).trim();
+    const val = decode(v).trim();
+
+    // 情況 1：正常 key=value（英文鍵）
+    if (key in enToStd) {
+      std[ enToStd[key] ] = val;
+      return;
+    }
+
+    // 情況 2：左右顛倒（值=中文欄位名），key 是「實際數值」，val 是「中文欄位名」
+    if (zhToStd[val]) {
+      std[ zhToStd[val] ] = key; // 注意：用 key 當值
+      return;
+    }
   });
-  return params;
+
+  return std;
 }
 
 function setCell(id, val){
   const el = document.getElementById(id);
-  el.textContent = val || '（空）';
+  el.textContent = val ? String(val) : '（空）';
   el.classList.toggle('muted', !val);
 }
 
-async function postToMake(data){
+function buildPayload(std){
+  return {
+    // 中文鍵
+    '訂單時間': std.order_time || '',
+    '訂單編號': std.order_id || '',
+    '信箱': std.email || '',
+    '分店名稱': std.store_name || '',
+    '寄貨方式': std.delivery_method || '',
+    '取貨備註': std.pickup_note || '',
+    '商品明細': std.orders || '',
+    '實際運費': std.shipping_fee || '',
+    '總計金額': std.total_amount || '',
+    // 英文鍵（同時帶上，Make 端好對應）
+    order_time: std.order_time || '',
+    order_id: std.order_id || '',
+    email: std.email || '',
+    store_name: std.store_name || '',
+    delivery_method: std.delivery_method || '',
+    pickup_note: std.pickup_note || '',
+    orders: std.orders || '',
+    shipping_fee: std.shipping_fee || '',
+    total_amount: std.total_amount || '',
+    _source_url: location.href
+  };
+}
+
+async function postToMake(payload){
   try{
     await fetch(MAKE_WEBHOOK_URL, {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({__emailjs__: data})
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ __emailjs__: payload })
     });
-    document.getElementById("resultLine").innerHTML = '✅ <span class="ok">成功</span>寄通知給總部';
-  }catch{
-    document.getElementById("resultLine").innerHTML = '❌ <span class="bad">失敗</span>寄通知給總部';
+    document.getElementById('resultLine').innerHTML = '✅ <span class="ok">成功</span>寄通知給總部';
+  }catch(_){
+    document.getElementById('resultLine').innerHTML = '❌ <span class="bad">失敗</span>寄通知給總部';
   }
 }
 
 (function init(){
-  const data = parseReversedParams();
-  // 顯示在表格
-  for(const id in zhLabelToId){
-    const elId = zhLabelToId[id];
-    setCell(elId, data[elId]);
-  }
-  // 背景送到 Make
-  postToMake(data);
+  const std = readParamsStd();
+
+  // 顯示在表格（與欄位 id 對應）
+  setCell('order_time',   std.order_time);
+  setCell('order_id',     std.order_id);
+  setCell('email',        std.email);
+  setCell('store_name',   std.store_name);
+  setCell('delivery_method', std.delivery_method);
+  setCell('pickup_note',  std.pickup_note);
+  setCell('orders',       std.orders);
+  setCell('shipping_fee', std.shipping_fee);
+  setCell('total_amount', std.total_amount);
+
+  // 背景送到 Make（隱藏式）
+  postToMake(buildPayload(std));
 })();
 </script>
 </body>

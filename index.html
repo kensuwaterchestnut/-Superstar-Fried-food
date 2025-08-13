@@ -1,84 +1,176 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>訂單已送出（中繼頁）</title>
-  <style>
-    :root { --w: 1080px; }
-    body { font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif; margin: 0; background:#f7f7f8; color:#111; }
-    .wrap { max-width: var(--w); margin: 48px auto; padding: 0 20px; }
-    h1 { font-size: 22px; margin: 0 0 20px; }
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; box-shadow: 0 2px 6px rgba(0,0,0,.04); }
-    .table { width: 100%; border-collapse: collapse; }
-    .table th, .table td { padding: 12px 14px; border-top:1px solid #f0f0f0; vertical-align: top; }
-    .table tr:first-child th, .table tr:first-child td { border-top: none; }
-    .table th { width: 200px; text-align: right; color:#555; font-weight: 600; background:#fafafa; }
-    .table td { text-align: left; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    .ok { display:inline-block; padding:6px 10px; border-radius:8px; background:#eefaf0; color:#116b2f; font-weight:600; font-size:13px; }
-    .foot { margin-top: 14px; font-size: 12px; color:#666; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>叫貨明細</title>
+<style>
+:root{--border:#e5e7eb;--muted:#6b7280;--text:#111827;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","Helvetica Neue",Arial,sans-serif;color:var(--text);background:#f8fafc}
+.wrap{max-width:840px;margin:48px auto;padding:0 16px}
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:28px}
+h1{margin:0 0 20px;text-align:center;letter-spacing:.12em;font-weight:800;font-size:28px}
+.hint{color:var(--muted);margin:0 0 14px}
+.table{width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff}
+.table th,.table td{border-bottom:1px solid var(--border);padding:14px 16px;vertical-align:top;word-break:break-word}
+.table th{width:28%;background:#f9fafb;text-align:left;color:#111827;font-weight:700}
+.muted{color:var(--muted)}
+.prewrap{white-space:pre-wrap}
+.footline{margin-top:14px;border-left:4px solid #3b82f6;padding-left:10px;color:var(--muted)}
+.ok{color:#059669}.bad{color:#b91c1c}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>訂單已送出 <span class="ok">已通知總部（Make）</span></h1>
-
-    <div class="card">
-      <table class="table" id="orderTable">
-        <tbody>
-          <tr><th>訂單時間</th><td id="order_time" class="mono"></td></tr>
-          <tr><th>訂單編號</th><td id="order_id" class="mono"></td></tr>
-          <tr><th>信箱</th><td id="email" class="mono"></td></tr>
-          <tr><th>分店名稱</th><td id="store_name" class="mono"></td></tr>
-          <tr><th>寄貨方式</th><td id="delivery_method" class="mono"></td></tr>
-          <tr><th>取貨備註</th><td id="pickup_note" class="mono"></td></tr>
-          <tr><th>商品明細</th><td id="order_details" class="mono"></td></tr>
-          <tr><th>實際運費</th><td id="shipping" class="mono"></td></tr>
-          <tr><th>總計金額</th><td id="total" class="mono"></td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="foot">若 Make 的 History 沒出現新紀錄，請再次確認此頁 URL 參數是否帶齊。</div>
+<div class="wrap">
+  <div class="card">
+    <h1>叫貨明細</h1>
+    <p class="hint">以下為本次訂單資訊：</p>
+    <table class="table">
+      <tbody>
+        <tr><th>訂單時間</th><td id="order_time"     class="muted">（空）</td></tr>
+        <tr><th>訂單編號</th><td id="order_id"       class="muted">（空）</td></tr>
+        <tr><th>信箱</th><td     id="email"          class="muted">（空）</td></tr>
+        <tr><th>分店名稱</th><td id="store_name"     class="muted">（空）</td></tr>
+        <tr><th>寄貨方式</th><td id="delivery_method"class="muted">（空）</td></tr>
+        <tr><th>取貨備註</th><td id="pickup_note"    class="muted">（空）</td></tr>
+        <tr><th>商品明細</th><td id="orders"         class="muted prewrap">（空）</td></tr>
+        <tr><th>實際運費</th><td id="shipping_fee"   class="muted">（空）</td></tr>
+        <tr><th>總計金額</th><td id="total_amount"   class="muted">（空）</td></tr>
+      </tbody>
+    </table>
+    <p id="resultLine" class="footline">正在將通知送出總部…</p>
   </div>
+</div>
 
-  <script>
-    (function () {
-      // 1) 讀取網址參數
-      const q = new URLSearchParams(location.search);
+<script>
+// === 設定 ===
+const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf";
 
-      // 欄位鍵名（保持與來源一致）
-      const fields = [
-        'order_time',       // 訂單時間
-        'order_id',         // 訂單編號
-        'email',            // 信箱
-        'store_name',       // 分店名稱
-        'delivery_method',  // 寄貨方式
-        'pickup_note',      // 取貨備註
-        'order_details',    // 商品明細
-        'shipping',         // 實際運費
-        'total'             // 總計金額
-      ];
+// Glide 英文鍵 → 內部標準鍵（依你給的對應）
+const enToStd = {
+  order_time: 'order_time',
+  order_id: 'order_id',
+  email: 'email',
+  store_name: 'store_name',
+  delivery_method: 'delivery_method',
+  pickup_note: 'pickup_note',
+  order_details: 'orders',
+  shipping: 'shipping_fee',
+  total: 'total_amount'   // ✅ 總計金額使用 total
+};
 
-      // 2) 顯示在頁面上（沒有值則顯示 —）
-      fields.forEach(key => {
-        const el = document.getElementById(key);
-        if (el) el.textContent = q.get(key) || '—';
-      });
+// 中文欄位名 → 內部標準鍵（用於值=中文欄位名的顛倒格式）
+const zhToStd = {
+  "訂單時間": "order_time",
+  "訂單編號": "order_id",
+  "信箱": "email",
+  "分店名稱": "store_name",
+  "寄貨方式": "delivery_method",
+  "取貨備註": "pickup_note",
+  "商品明細": "orders",
+  "實際運費": "shipping_fee",
+  "總計金額": "total_amount"
+};
 
-      // 3) 準備要送到 Make 的同份資料
-      const payload = new URLSearchParams();
-      fields.forEach(key => payload.append(key, q.get(key) || ''));
-      payload.append('_ts', Date.now().toString()); // 防快取/去重
+// === 工具 ===
+function decodeQS(s){
+  try { return decodeURIComponent(String(s||'').replace(/\+/g,' ')); }
+  catch { return String(s||''); }
+}
 
-      // 4) 以圖片 beacon 方式送到 Make Webhook（隱藏、不受 CORS 影響）
-      const MAKE_WEBHOOK_URL = 'https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf';
-      const img = new Image();
-      img.src = MAKE_WEBHOOK_URL + '?' + payload.toString();
-      img.onload = () => console.log('Make webhook ping sent.');
-      img.onerror = () => console.warn('Make webhook ping failed. 檢查 URL 或網路。');
-    })();
-  </script>
+function setCell(id, val){
+  const el = document.getElementById(id);
+  const v = (val == null || val === '') ? '（空）' : String(val);
+  el.textContent = v;
+  el.classList.toggle('muted', v === '（空）');
+}
+
+// === 解析網址：同時支援 1) Glide 英文鍵 2) 顛倒格式 ===
+function readParamsStd(){
+  const std = {};
+  const usp = new URLSearchParams(location.search.startsWith('?') ? location.search.slice(1) : location.search);
+
+  // 先吃 Glide 英文鍵（優先權較高）
+  usp.forEach((v,k) => {
+    const key = decodeQS(k).trim();
+    const val = decodeQS(v).trim();
+    if (key in enToStd) std[ enToStd[key] ] = val;
+  });
+
+  // 再補顛倒格式（只有在欄位尚未被填入時才補）
+  usp.forEach((v,k) => {
+    const maybeValue = decodeQS(k).trim(); // 左邊是值
+    const maybeLabel = decodeQS(v).trim(); // 右邊是中文欄位名
+    const stdKey = zhToStd[maybeLabel];
+    if (stdKey && (std[stdKey] == null || std[stdKey] === '')) {
+      std[stdKey] = maybeValue;
+    }
+  });
+
+  return std;
+}
+
+// === 組 Make 需要的 payload（EmailJS 相容） ===
+function buildPayload(std){
+  return {
+    // 中文鍵（Make/Email 模板可直接用）
+    '訂單時間': std.order_time || '',
+    '訂單編號': std.order_id || '',
+    '信箱': std.email || '',
+    '分店名稱': std.store_name || '',
+    '寄貨方式': std.delivery_method || '',
+    '取貨備註': std.pickup_note || '',
+    '商品明細': std.orders || '',
+    '實際運費': std.shipping_fee || '',
+    '總計金額': std.total_amount || '',
+    // 英文鍵（備用）
+    order_time: std.order_time || '',
+    order_id: std.order_id || '',
+    email: std.email || '',
+    store_name: std.store_name || '',
+    delivery_method: std.delivery_method || '',
+    pickup_note: std.pickup_note || '',
+    orders: std.orders || '',
+    shipping_fee: std.shipping_fee || '',
+    total_amount: std.total_amount || '',
+    // 來源
+    _source_url: location.href
+  };
+}
+
+// === 背景送到 Make（不阻擋 UI） ===
+async function postToMake(payload){
+  try{
+    await fetch(MAKE_WEBHOOK_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ __emailjs__: payload })
+    });
+    document.getElementById('resultLine').innerHTML = '✅ <span class="ok">成功</span>寄通知給總部';
+  }catch(_){
+    document.getElementById('resultLine').innerHTML = '❌ <span class="bad">失敗</span>寄通知給總部';
+  }
+}
+
+// === 啟動 ===
+(function init(){
+  const std = readParamsStd();
+
+  // 顯示在表格（與欄位 id 對應）
+  setCell('order_time',   std.order_time);
+  setCell('order_id',     std.order_id);
+  setCell('email',        std.email);
+  setCell('store_name',   std.store_name);
+  setCell('delivery_method', std.delivery_method);
+  setCell('pickup_note',  std.pickup_note);
+  setCell('orders',       std.orders);
+  setCell('shipping_fee', std.shipping_fee);
+  setCell('total_amount', std.total_amount);
+
+  // 隱藏式通知 Make
+  const payload = buildPayload(std);
+  postToMake(payload);
+})();
+</script>
 </body>
 </html>

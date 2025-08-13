@@ -3,16 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>叫貨明細</title>
+  <title>叫貨明細（中繼站）</title>
   <style>
     :root{--border:#e5e7eb;--muted:#6b7280;--text:#111827;}
+    *{box-sizing:border-box}
     body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","Helvetica Neue",Arial,sans-serif;color:var(--text);background:#f8fafc}
-    .wrap{max-width:840px;margin:48px auto;padding:0 16px}
+    .wrap{max-width:880px;margin:48px auto;padding:0 16px}
     .card{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:28px}
     h1{margin:0 0 20px;text-align:center;letter-spacing:.12em;font-weight:800;font-size:28px}
     .hint{color:var(--muted);margin:0 0 14px}
     .table{width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff}
-    .table th,.table td{border-bottom:1px solid var(--border);padding:14px 16px;vertical-align:top;word-break:break-word}
+    .table th,.table td{border-bottom:1px solid var(--border);padding:12px 14px;vertical-align:top;word-break:break-word}
     .table th{width:28%;background:#f9fafb;text-align:left;color:#111827;font-weight:700}
     .muted{color:var(--muted)}
     .prewrap{white-space:pre-wrap}
@@ -20,13 +21,17 @@
     .ok{color:#059669}.bad{color:#b91c1c}
     .debug{margin-top:18px;padding:12px;border:1px dashed #d1d5db;border-radius:8px;background:#f9fafb;color:#374151}
     .code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;white-space:pre-wrap;word-break:break-all}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+    .btn{appearance:none;border:1px solid var(--border);background:#111827;color:#fff;border-radius:8px;padding:10px 14px;cursor:pointer}
+    .btn.secondary{background:#fff;color:#111827}
+    .small{font-size:12px;color:var(--muted)}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>叫貨明細</h1>
-      <p class="hint">以下為本次訂單資訊：</p>
+      <p class="hint">此頁會讀取網址列參數並自動送到 Make Webhook。</p>
 
       <table class="table">
         <tbody>
@@ -42,70 +47,157 @@
         </tbody>
       </table>
 
+      <div class="row">
+        <button id="resendBtn" class="btn">重新送出到 Make</button>
+        <button id="copyBtn" class="btn secondary">複製 JSON</button>
+        <span id="copyTip" class="small"></span>
+      </div>
+
       <p id="resultLine" class="footline">正在將通知送出總部…</p>
 
       <div class="debug">
         <div><strong>原始 QueryString：</strong></div>
         <div id="raw" class="code">(尚無)</div>
-        <div style="margin-top:8px;"><strong>解析後的參數：</strong></div>
+        <div style="margin-top:8px;"><strong>解析後的參數（key=value）：</strong></div>
         <div id="kv" class="code">(尚無)</div>
+        <div style="margin-top:8px;"><strong>將送往 Make 的 payload（__emailjs__）：</strong></div>
+        <div id="payload" class="code">(尚無)</div>
         <div style="margin-top:8px;"><strong>錯誤 / 訊息：</strong></div>
         <div id="errs" class="code">(無)</div>
       </div>
+
+      <p class="small">可接受兩種網址格式：<br>
+      1) <code>?order_time=2025-08-13%2010:58&order_id=AB123...</code><br>
+      2) <code>?2025-08-13%2010:58=訂單時間&AB123=訂單編號&kensu%40...=信箱</code>（左右顛倒也能正確還原）</p>
     </div>
   </div>
 
   <script>
-    // 已替換為你的 Make Webhook URL
+    // ① 設定你的 Make Webhook（保持你提供的網址）
     const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf";
+
+    // ② 欄位別名（英/中都可接）→ 標準欄位名
+    const aliasToStd = new Map([
+      // 訂單時間
+      ['order_time','order_time'], ['time','order_time'], ['t','order_time'], ['訂單時間','order_time'],
+      // 訂單編號
+      ['order_id','order_id'], ['id','order_id'], ['訂單編號','order_id'],
+      // 信箱
+      ['email','email'], ['mail','email'], ['信箱','email'],
+      // 分店名稱
+      ['store','store_name'], ['store_name','store_name'], ['branch','store_name'], ['分店名稱','store_name'],
+      // 寄貨方式
+      ['delivery','delivery_method'], ['delivery_method','delivery_method'], ['ship','delivery_method'], ['寄貨方式','delivery_method'],
+      // 取貨備註
+      ['pickup_note','pickup_note'], ['note','pickup_note'], ['備註','pickup_note'], ['取貨備註','pickup_note'],
+      // 商品明細
+      ['orders','orders'], ['order_details','orders'], ['items','orders'], ['商品明細','orders'],
+      // 實際運費
+      ['shipping','shipping_fee'], ['shipping_fee','shipping_fee'], ['運費','shipping_fee'], ['實際運費','shipping_fee'],
+      // 總計金額
+      ['total','total_amount'], ['total_amount','total_amount'], ['sum','total_amount'], ['總計金額','total_amount'],
+    ]);
+
+    // ③ 用於偵測「顛倒（值=中文欄位名）」的中文欄位名 → 標準欄位名
+    const zhLabelToStd = new Map([
+      ['訂單時間','order_time'],
+      ['訂單編號','order_id'],
+      ['信箱','email'],
+      ['分店名稱','store_name'],
+      ['寄貨方式','delivery_method'],
+      ['取貨備註','pickup_note'],
+      ['商品明細','orders'],
+      ['實際運費','shipping_fee'],
+      ['總計金額','total_amount'],
+    ]);
 
     const log = (msg)=> {
       const el = document.getElementById('errs');
       el.textContent = (el.textContent === '(無)' ? '' : el.textContent + '\n') + msg;
     };
 
-    function readParams() {
-      const raw = location.search.startsWith('?') ? location.search.slice(1) : location.search;
-      document.getElementById('raw').textContent = raw || '(空)';
-      const params = {};
-      try {
-        const usp = new URLSearchParams(raw);
-        usp.forEach((v,k)=>{
-          const val = decodeURIComponent((v||'').replace(/\+/g,' '));
-          const key = decodeURIComponent((k||'').replace(/\+/g,' '));
-          params[key] = val;
-        });
-      } catch(e) {
-        log('URLSearchParams 解析失敗：' + e.message);
-      }
-      document.getElementById('kv').textContent = Object.keys(params).length
-        ? JSON.stringify(params, null, 2)
-        : '(空)';
-      return params;
-    }
-
-    function mapToNeeded(p){
-      return {
-        order_time:      p.time            || '',
-        order_id:        p.order_id        || '',
-        email:           p.email           || '',
-        store_name:      p.store_name      || '',
-        delivery_method: p.delivery_method || '',
-        pickup_note:     p.pickup_note     || '',
-        orders:          p.order_details   || '',
-        shipping_fee:    p.shipping        || '',
-        total_amount:    p.total           || ''
-      };
-    }
-
-    function setCell(id, val){
+    const setCell = (id, val)=>{
       const el = document.getElementById(id);
       if (!el){ log('找不到節點 #' + id); return; }
       el.textContent = val || '（空）';
       el.classList.toggle('muted', !val);
+    };
+
+    // 解碼 + 還原 + 處理加號空白
+    const safeDecode = (s)=> {
+      try { return decodeURIComponent(String(s || '').replace(/\+/g,' ')); }
+      catch { return String(s || ''); }
+    };
+
+    // 讀原始 QueryString → 回傳「標準欄位名」→ 值 的物件
+    function readAndNormalizeParams(){
+      const raw = location.search.startsWith('?') ? location.search.slice(1) : location.search;
+      document.getElementById('raw').textContent = raw || '(空)';
+
+      const pairs = [];
+      try{
+        const usp = new URLSearchParams(raw);
+        usp.forEach((v,k)=> pairs.push([safeDecode(k), safeDecode(v)]));
+      }catch(e){
+        log('URLSearchParams 解析失敗：' + e.message);
+      }
+
+      // 先嘗試一般 key=value 的映射
+      const std = {};
+      for(const [k,v] of pairs){
+        const keyStd = aliasToStd.get(k.trim());
+        if (keyStd) std[keyStd] = v.trim();
+      }
+
+      // 再補上「顛倒值=中文欄位名」的情況（只有當標準欄位尚未被填入時才覆蓋）
+      for(const [maybeValue, maybeLabel] of pairs){
+        const keyStd = zhLabelToStd.get(maybeLabel.trim());
+        if (keyStd && (std[keyStd] == null || std[keyStd] === '')){
+          std[keyStd] = maybeValue.trim();
+        }
+      }
+
+      // 顯示解析後 key=value（純展示）
+      const kvObj = {};
+      for(const [k,v] of pairs){ kvObj[k] = v; }
+      document.getElementById('kv').textContent = Object.keys(kvObj).length ? JSON.stringify(kvObj, null, 2) : '(空)';
+
+      return std;
     }
 
-    async function postToMake(payload){
+    // 映射為頁面顯示與 Make 的 payload（EmailJS 欄位名你可在 Make 裡對應）
+    function buildEmailJsPayload(std){
+      // 你可在 Make 情境中用這些鍵去對應你要的信件樣板變數
+      const payload = {
+        // 直接用中文鍵，Make 端更容易識別；也同時帶上英鍵方便轉接
+        '訂單時間': std.order_time || '',
+        '訂單編號': std.order_id || '',
+        '信箱': std.email || '',
+        '分店名稱': std.store_name || '',
+        '寄貨方式': std.delivery_method || '',
+        '取貨備註': std.pickup_note || '',
+        '商品明細': std.orders || '',
+        '實際運費': std.shipping_fee || '',
+        '總計金額': std.total_amount || '',
+
+        // 同步提供英文鍵（若你在 Make/Email 模板偏好英文變數名）
+        order_time: std.order_time || '',
+        order_id: std.order_id || '',
+        email: std.email || '',
+        store_name: std.store_name || '',
+        delivery_method: std.delivery_method || '',
+        pickup_note: std.pickup_note || '',
+        orders: std.orders || '',
+        shipping_fee: std.shipping_fee || '',
+        total_amount: std.total_amount || '',
+
+        // 附帶來源網址方便稽核
+        _source_url: location.href
+      };
+      return payload;
+    }
+
+    async function postToMake(emailJsPayload){
       if (!MAKE_WEBHOOK_URL || !/^https?:\/\//.test(MAKE_WEBHOOK_URL)){
         log('MAKE_WEBHOOK_URL 尚未設定或格式不正確');
         return false;
@@ -114,9 +206,12 @@
         const res = await fetch(MAKE_WEBHOOK_URL, {
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ __emailjs__: payload })
+          // 維持你之前的 EmailJS 相容封包格式
+          body: JSON.stringify({ __emailjs__: emailJsPayload })
         });
-        if (!res.ok) log('Make 回應狀態：' + res.status + '（不一定代表失敗）');
+        if (!res.ok){
+          log('Make 回應狀態：' + res.status + '（可能未設 CORS，或不影響 Make 觸發）');
+        }
         return true;
       }catch(err){
         log('送到 Make 失敗：' + err.message);
@@ -124,34 +219,30 @@
       }
     }
 
+    // 主流程
     (async ()=>{
       try{
-        const all = readParams();
-        const data = mapToNeeded(all);
+        const std = readAndNormalizeParams();
 
-        setCell('order_time',   data.order_time);
-        setCell('order_id',     data.order_id);
-        setCell('email',        data.email);
-        setCell('store_name',   data.store_name);
-        setCell('delivery_method', data.delivery_method);
-        setCell('pickup_note',  data.pickup_note);
-        setCell('orders',       data.orders);
-        setCell('shipping_fee', data.shipping_fee);
-        setCell('total_amount', data.total_amount);
+        // 更新頁面欄位
+        setCell('order_time',   std.order_time);
+        setCell('order_id',     std.order_id);
+        setCell('email',        std.email);
+        setCell('store_name',   std.store_name);
+        setCell('delivery_method', std.delivery_method);
+        setCell('pickup_note',  std.pickup_note);
+        setCell('orders',       std.orders);
+        setCell('shipping_fee', std.shipping_fee);
+        setCell('total_amount', std.total_amount);
 
-        if (Object.values(data).every(v => !v)) {
-          log('未讀到任何既定欄位（time,order_id,email,store_name,delivery_method,pickup_note,order_details,shipping,total）。');
+        if (Object.values(std).every(v => !v)){
+          log('未讀到任何既定欄位（order_time/order_id/email/store_name/delivery_method/pickup_note/orders/shipping_fee/total_amount），請確認網址參數。');
         }
 
-        const ok = await postToMake(data);
+        const payload = buildEmailJsPayload(std);
+        document.getElementById('payload').textContent = JSON.stringify(payload, null, 2);
+
+        const ok = await postToMake(payload);
         const line = document.getElementById('resultLine');
         line.innerHTML = ok
-          ? '✅ <span class="ok">成功</span>寄通知給總部，明細表請自行留存。'
-          : '❌ <span class="bad">失敗</span>寄通知給總部，請稍後重試或聯絡管理員。';
-      }catch(e){
-        log('頁面執行錯誤：' + e.message);
-      }
-    })();
-  </script>
-</body>
-</html>
+          ? '✅ <span class="ok">成功</span>寄通知給總部，明細表請自行

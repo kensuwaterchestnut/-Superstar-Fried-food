@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <title>叫貨明細</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- build: v-wrap-product-sendbeacon-2025-08-13 -->
+  <!-- build: v-stable-2025-08-13 -->
   <style>
-    body{margin:0;background:#fff;color:#222;
+    html,body{margin:0;padding:0;background:#fff;color:#222;
       font-family:ui-sans-serif,-apple-system,Segoe UI,Roboto,"Noto Sans TC",Arial;line-height:1.6}
     .wrap{max-width:1000px;margin:32px auto;padding:0 16px}
     .card{
@@ -19,6 +19,7 @@
     th{width:28%;color:#444;font-weight:600;text-align:left}
     td.product-details{white-space:pre-wrap;word-break:break-word}
     .footer{margin-top:16px;color:#555;font-size:14px;border-left:3px solid #0078d7;padding-left:10px}
+    .footer.err{border-left-color:#c00;color:#b10000}
     .muted{color:#888}
   </style>
 </head>
@@ -27,147 +28,173 @@
     <div class="card">
       <h1>叫貨明細</h1>
       <div style="color:#555;">以下為本次訂單資訊：</div>
-      <table id="kvTable"><tbody><tr><td class="muted" colspan="2">初始化中…</td></tr></tbody></table>
+      <table id="kvTable">
+        <tbody><tr><td class="muted" colspan="2">初始化中…</td></tr></tbody>
+      </table>
       <div id="footer" class="footer">正在嘗試寄通知給總部…</div>
     </div>
   </div>
 
   <script>
-  document.addEventListener('DOMContentLoaded', async () => {
-    const tbody  = document.querySelector('#kvTable tbody');
-    const footer = document.getElementById('footer');
+  (function(){
+    const $ = (sel)=>document.querySelector(sel);
+    const tbody  = $('#kvTable tbody');
+    const footer = $('#footer');
 
-    // 讀網址參數
-    const sp = new URLSearchParams(location.search);
-    const raw = {}; for (const [k,v] of sp.entries()) raw[k] = v ?? "";
-
-    // 欄位設定
-    const alias = {
-      order_time:      ["time","訂單時間"],
-      order_id:        ["order_id","訂單編號"],
-      email:           ["email","信箱"],
-      store_name:      ["store_name","分店名稱"],
-      delivery_method: ["delivery_method","寄貨方式"],
-      pickup_note:     ["pickup_note","取貨備註"],
-      orders:          ["order_details","商品明細"],
-      shipping_fee:    ["shipping","實際運費"],
-      total_amount:    ["total","總計金額"]
-    };
-    const labels = {
-      order_time:"訂單時間",order_id:"訂單編號",email:"信箱",store_name:"分店名稱",
-      delivery_method:"寄貨方式",pickup_note:"取貨備註",orders:"商品明細",
-      shipping_fee:"實際運費",total_amount:"總計金額"
-    };
-    const allAliasWords = new Set(Object.values(alias).flat());
-
-    // 自動翻轉 Glide 反向參數
-    const fixed = {...raw};
-    for (const [k,v] of Object.entries(raw)) {
-      if (!allAliasWords.has(k) && allAliasWords.has(v)) fixed[v] = k;
+    function setError(msg){
+      footer.classList.add('err');
+      footer.textContent = "❌ 發生錯誤： " + msg;
     }
 
-    // escape
-    const escapeHTML = (s) => String(s)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    try {
+      // 1) 讀網址參數
+      const sp = new URLSearchParams(location.search);
+      const raw = {};
+      sp.forEach((v,k)=>{ raw[k]=v==null?"":v; });
 
-    // 格式化商品明細
-    function formatOrders(val){
-      if (!val) return "";
-      let txt = String(val);
-      txt = txt.replace(/\r\n/g, '\n');
-      txt = txt.replace(/\\n/g, '\n');
-      txt = txt.replace(/<br\s*\/?>/gi, '\n');
-      if (!/\n/.test(txt)) {
-        txt = txt.replace(/\s*[,，、;；\/]\s*/g, '\n');
+      // 2) 欄位設定（你要的9個）
+      const alias = {
+        order_time:      ["time","訂單時間"],
+        order_id:        ["order_id","訂單編號"],
+        email:           ["email","信箱"],
+        store_name:      ["store_name","分店名稱"],
+        delivery_method: ["delivery_method","寄貨方式"],
+        pickup_note:     ["pickup_note","取貨備註"],
+        orders:          ["order_details","商品明細"],
+        shipping_fee:    ["shipping","實際運費"],
+        total_amount:    ["total","總計金額"]
+      };
+      const labels = {
+        order_time:"訂單時間",order_id:"訂單編號",email:"信箱",store_name:"分店名稱",
+        delivery_method:"寄貨方式",pickup_note:"取貨備註",orders:"商品明細",
+        shipping_fee:"實際運費",total_amount:"總計金額"
+      };
+
+      // 3) 自動翻轉（Glide 反向 key=value）
+      const allWords = {};
+      Object.keys(alias).forEach(k=>alias[k].forEach(w=>{allWords[w]=true;}));
+      const fixed = Object.assign({}, raw);
+      Object.keys(raw).forEach(k=>{
+        const v = raw[k];
+        if (!allWords[k] && allWords[v]) fixed[v]=k;
+      });
+
+      // 4) 輔助
+      function hasOwn(o,k){ return Object.prototype.hasOwnProperty.call(o,k); }
+      function pick(obj, list){
+        for (var i=0;i<list.length;i++){
+          var k=list[i];
+          if (hasOwn(obj,k) && obj[k]!=="" && obj[k]!=null) return obj[k];
+        }
+        return "";
       }
-      return escapeHTML(txt).replace(/\n/g, '<br>');
-    }
-
-    const orderKeys = [
-      "order_time","order_id","email","store_name","delivery_method",
-      "pickup_note","orders","shipping_fee","total_amount"
-    ];
-    function pick(obj, keys){ for (const k of keys){ if (obj[k]!==undefined && obj[k]!=="") return obj[k]; } return ""; }
-
-    const english = {};
-    let rows = "";
-    orderKeys.forEach(key=>{
-      const value = english[key] = pick(fixed, alias[key]);
-      if (key === "orders"){
-        const html = value ? formatOrders(value) : "<span class='muted'>（空）</span>";
-        rows += `<tr><th>${labels[key]}</th><td class="product-details">${html}</td></tr>`;
-      } else {
-        rows += `<tr><th>${labels[key]}</th><td>${escapeHTML(value||"")} ${value?"":"<span class='muted'>（空）</span>"}</td></tr>`;
+      function esc(s){
+        return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+                        .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
       }
-    });
-    tbody.innerHTML = rows;
+      function formatOrders(val){
+        if (!val) return "";
+        var txt = String(val);
+        txt = txt.replace(/\r\n/g,"\n").replace(/\\n/g,"\n").replace(/<br\s*\/?>/gi,"\n");
+        if (!/\n/.test(txt)) txt = txt.replace(/\s*[,，、;；\/]\s*/g,"\n");
+        return esc(txt).replace(/\n/g,"<br>");
+      }
 
-    // ===== 送到 Make（安全多步） =====
-    const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf";
-    const payload = { ...fixed, __emailjs__: english };
-
-    // 攤平成 querystring
-    function toQuery(obj, prefix) {
-      const pairs = [];
-      for (const k in obj) {
-        if (!Object.hasOwn(obj, k)) continue;
-        const key = prefix ? ${prefix}.${k} : k;
-        const val = obj[k];
-        if (val && typeof val === 'object') {
-          pairs.push(toQuery(val, key));
-        } else {
-          pairs.push(encodeURIComponent(key) + '=' + encodeURIComponent(val ?? ''));
+      // 5) 畫面
+      var english = {};
+      var orderKeys = ["order_time","order_id","email","store_name","delivery_method","pickup_note","orders","shipping_fee","total_amount"];
+      var rows = "";
+      for (var i=0;i<orderKeys.length;i++){
+        var key = orderKeys[i];
+        var val = english[key] = pick(fixed, alias[key]);
+        if (key==="orders"){
+          var html = val ? formatOrders(val) : "<span class='muted'>（空）</span>";
+          rows += "<tr><th>"+labels[key]+"</th><td class=\"product-details\">"+html+"</td></tr>";
+        }else{
+          rows += "<tr><th>"+labels[key]+"</th><td>"+(val?esc(val)+"":"<span class='muted'>（空）</span>")+"</td></tr>";
         }
       }
-      return pairs.join('&');
+      tbody.innerHTML = rows;
+
+      // 6) 傳到 Make（多層備援）
+      var MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf"; // ← 確認這是你的 Webhook
+      var payload = {};
+      // 合併 fixed 與 __emailjs__
+      for (var k in fixed){ if (hasOwn(fixed,k)) payload[k]=fixed[k]; }
+      payload.__emailjs__ = english;
+
+      function toQuery(obj, prefix){
+        var pairs=[], k, key, val;
+        for (k in obj){
+          if (!hasOwn(obj,k)) continue;
+          key = prefix ? (prefix+"."+k) : k;
+          val = obj[k];
+          if (val && typeof val === "object"){
+            pairs.push(toQuery(val, key));
+          }else{
+            pairs.push(encodeURIComponent(key)+"="+encodeURIComponent(val==null?"":val));
+          }
+        }
+        return pairs.join("&");
+      }
+
+      function fetchWithTimeout(url, options, ms){
+        return new Promise(function(resolve,reject){
+          var ctrl = new AbortController();
+          var t = setTimeout(function(){ ctrl.abort(); reject(new Error("timeout")); }, ms||6000);
+          fetch(url, Object.assign({}, options||{}, {signal: ctrl.signal}))
+            .then(function(res){ clearTimeout(t); resolve(res); })
+            .catch(function(err){ clearTimeout(t); reject(err); });
+        });
+      }
+
+      (function sendToMake(){
+        var ok = false;
+        var jsonStr = JSON.stringify(payload);
+
+        // A. sendBeacon
+        try{
+          if ('sendBeacon' in navigator){
+            var blob = new Blob([jsonStr], { type: 'application/json' });
+            ok = navigator.sendBeacon(MAKE_WEBHOOK_URL, blob);
+          }
+        }catch(e){ /* ignore */ }
+
+        // B. fetch(text/plain)
+        function afterBeacon(){
+          if (ok){
+            footer.textContent = "✅ 成功寄通知給總部，明細表請自行留存。";
+            return;
+          }
+          fetchWithTimeout(MAKE_WEBHOOK_URL, {
+            method: "POST",
+            headers: {"Content-Type":"text/plain;charset=UTF-8"},
+            body: jsonStr
+          }, 7000).then(function(res){
+            footer.textContent = res && res.ok
+              ? "✅ 成功寄通知給總部，明細表請自行留存。"
+              : "❌ 失敗寄通知給總部（HTTP）。";
+          }).catch(function(){
+            // C. 影像 GET ping
+            try{
+              var img = new Image();
+              img.onload = function(){ footer.textContent = "✅ 成功寄通知給總部，明細表請自行留存。"; };
+              img.onerror = function(){ setError("Send 失敗（圖片 ping）"); };
+              img.src = MAKE_WEBHOOK_URL + "?" + toQuery(payload);
+            }catch(e){
+              setError("Send 失敗（例外）");
+            }
+          });
+        }
+
+        // sendBeacon 是同步回傳 boolean，所以直接接續
+        afterBeacon();
+      })();
+
+    } catch (e) {
+      setError(e && e.message ? e.message : String(e));
     }
-
-    async function tryFetchWithTimeout(url, options = {}, ms = 5000) {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), ms);
-      try {
-        const res = await fetch(url, { ...options, signal: ctrl.signal });
-        return res;
-      } finally { clearTimeout(t); }
-    }
-
-    let ok = false;
-    const jsonStr = JSON.stringify(payload);
-
-    // A. sendBeacon
-    if ('sendBeacon' in navigator) {
-      try {
-        const blob = new Blob([jsonStr], { type: 'application/json' });
-        ok = navigator.sendBeacon(MAKE_WEBHOOK_URL, blob);
-      } catch (_) { ok = false; }
-    }
-
-    // B. fetch(text/plain)
-    if (!ok) {
-      try {
-        const res = await tryFetchWithTimeout(MAKE_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-          body: jsonStr
-        }, 6000);
-        ok = res && res.ok;
-      } catch (_) { ok = false; }
-    }
-
-    // C. GET 圖片 ping
-    if (!ok) {
-      try {
-        const img = new Image();
-        img.src = MAKE_WEBHOOK_URL + '?' + toQuery(payload);
-        ok = true; // 不確認結果，假設成功
-      } catch (_) { ok = false; }
-    }
-
-    footer.textContent = ok
-      ? "✅ 成功寄通知給總部，明細表請自行留存。"
-      : "❌ 失敗寄通知給總部，請稍後再試或聯絡管理員。";
-  });
+  })();
   </script>
 </body>
 </html>

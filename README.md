@@ -58,7 +58,7 @@
 
   <script>
     // ❶ 這裡換成 Make Webhook 的正確 URL（在 Webhooks 模組按 Copy address）
-    const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/XXXXXXXXXXXX";
+    const MAKE_WEBHOOK_URL = https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf
 
     const log = (msg)=> {
       const el = document.getElementById('errs');

@@ -43,9 +43,10 @@ h1{margin:0 0 20px;text-align:center;letter-spacing:.12em;font-weight:800;font-s
 </div>
 
 <script>
+// === 設定 ===
 const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf";
 
-// 你提供的「Glide 英文鍵」→ 內部標準鍵
+// Glide 英文鍵 → 內部標準鍵（依你給的對應）
 const enToStd = {
   order_time: 'order_time',
   order_id: 'order_id',
@@ -55,10 +56,10 @@ const enToStd = {
   pickup_note: 'pickup_note',
   order_details: 'orders',
   shipping: 'shipping_fee',
-  total: 'total_amount'
+  total: 'total_amount'   // ✅ 總計金額使用 total
 };
 
-// 中文欄位名 → 內部標準鍵（處理左右顛倒）
+// 中文欄位名 → 內部標準鍵（用於值=中文欄位名的顛倒格式）
 const zhToStd = {
   "訂單時間": "order_time",
   "訂單編號": "order_id",
@@ -71,45 +72,48 @@ const zhToStd = {
   "總計金額": "total_amount"
 };
 
-function decode(s){
+// === 工具 ===
+function decodeQS(s){
   try { return decodeURIComponent(String(s||'').replace(/\+/g,' ')); }
   catch { return String(s||''); }
 }
 
-// 同時支援：1) 正常 key=value（英文鍵） 2) 左右顛倒（值=中文欄位名）
+function setCell(id, val){
+  const el = document.getElementById(id);
+  const v = (val == null || val === '') ? '（空）' : String(val);
+  el.textContent = v;
+  el.classList.toggle('muted', v === '（空）');
+}
+
+// === 解析網址：同時支援 1) Glide 英文鍵 2) 顛倒格式 ===
 function readParamsStd(){
   const std = {};
   const usp = new URLSearchParams(location.search.startsWith('?') ? location.search.slice(1) : location.search);
 
+  // 先吃 Glide 英文鍵（優先權較高）
   usp.forEach((v,k) => {
-    const key = decode(k).trim();
-    const val = decode(v).trim();
+    const key = decodeQS(k).trim();
+    const val = decodeQS(v).trim();
+    if (key in enToStd) std[ enToStd[key] ] = val;
+  });
 
-    // 情況 1：正常 key=value（英文鍵）
-    if (key in enToStd) {
-      std[ enToStd[key] ] = val;
-      return;
-    }
-
-    // 情況 2：左右顛倒（值=中文欄位名），key 是「實際數值」，val 是「中文欄位名」
-    if (zhToStd[val]) {
-      std[ zhToStd[val] ] = key; // 注意：用 key 當值
-      return;
+  // 再補顛倒格式（只有在欄位尚未被填入時才補）
+  usp.forEach((v,k) => {
+    const maybeValue = decodeQS(k).trim(); // 左邊是值
+    const maybeLabel = decodeQS(v).trim(); // 右邊是中文欄位名
+    const stdKey = zhToStd[maybeLabel];
+    if (stdKey && (std[stdKey] == null || std[stdKey] === '')) {
+      std[stdKey] = maybeValue;
     }
   });
 
   return std;
 }
 
-function setCell(id, val){
-  const el = document.getElementById(id);
-  el.textContent = val ? String(val) : '（空）';
-  el.classList.toggle('muted', !val);
-}
-
+// === 組 Make 需要的 payload（EmailJS 相容） ===
 function buildPayload(std){
   return {
-    // 中文鍵
+    // 中文鍵（Make/Email 模板可直接用）
     '訂單時間': std.order_time || '',
     '訂單編號': std.order_id || '',
     '信箱': std.email || '',
@@ -119,7 +123,7 @@ function buildPayload(std){
     '商品明細': std.orders || '',
     '實際運費': std.shipping_fee || '',
     '總計金額': std.total_amount || '',
-    // 英文鍵（同時帶上，Make 端好對應）
+    // 英文鍵（備用）
     order_time: std.order_time || '',
     order_id: std.order_id || '',
     email: std.email || '',
@@ -129,10 +133,12 @@ function buildPayload(std){
     orders: std.orders || '',
     shipping_fee: std.shipping_fee || '',
     total_amount: std.total_amount || '',
+    // 來源
     _source_url: location.href
   };
 }
 
+// === 背景送到 Make（不阻擋 UI） ===
 async function postToMake(payload){
   try{
     await fetch(MAKE_WEBHOOK_URL, {
@@ -146,6 +152,7 @@ async function postToMake(payload){
   }
 }
 
+// === 啟動 ===
 (function init(){
   const std = readParamsStd();
 
@@ -160,8 +167,9 @@ async function postToMake(payload){
   setCell('shipping_fee', std.shipping_fee);
   setCell('total_amount', std.total_amount);
 
-  // 背景送到 Make（隱藏式）
-  postToMake(buildPayload(std));
+  // 隱藏式通知 Make
+  const payload = buildPayload(std);
+  postToMake(payload);
 })();
 </script>
 </body>

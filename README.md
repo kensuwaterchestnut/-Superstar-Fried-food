@@ -44,7 +44,6 @@
 
       <p id="resultLine" class="footline">正在將通知送出總部…</p>
 
-      <!-- Debug 區塊 -->
       <div class="debug">
         <div><strong>原始 QueryString：</strong></div>
         <div id="raw" class="code">(尚無)</div>
@@ -57,8 +56,8 @@
   </div>
 
   <script>
-    // ❶ 這裡換成 Make Webhook 的正確 URL（在 Webhooks 模組按 Copy address）
-    const MAKE_WEBHOOK_URL = https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf
+    // 已替換為你的 Make Webhook URL
+    const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf";
 
     const log = (msg)=> {
       const el = document.getElementById('errs');
@@ -71,7 +70,6 @@
       const params = {};
       try {
         const usp = new URLSearchParams(raw);
-        // 修正 + 變空白的情況
         usp.forEach((v,k)=>{
           const val = decodeURIComponent((v||'').replace(/\+/g,' '));
           const key = decodeURIComponent((k||'').replace(/\+/g,' '));
@@ -80,7 +78,6 @@
       } catch(e) {
         log('URLSearchParams 解析失敗：' + e.message);
       }
-      // 顯示解析後的所有鍵值
       document.getElementById('kv').textContent = Object.keys(params).length
         ? JSON.stringify(params, null, 2)
         : '(空)';
@@ -88,7 +85,6 @@
     }
 
     function mapToNeeded(p){
-      // 你的 Glide 鍵 → 我們畫面/EmailJS 對應鍵
       return {
         order_time:      p.time            || '',
         order_id:        p.order_id        || '',
@@ -111,7 +107,7 @@
 
     async function postToMake(payload){
       if (!MAKE_WEBHOOK_URL || !/^https?:\/\//.test(MAKE_WEBHOOK_URL)){
-        log('MAKE_WEBHOOK_URL (https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf)');
+        log('MAKE_WEBHOOK_URL 尚未設定或格式不正確');
         return false;
       }
       try{
@@ -120,8 +116,7 @@
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ __emailjs__: payload })
         });
-        // 注意：跨網域有時是 opaque 回應，res.ok 可能是 false，但資料已送出。
-        if (!res.ok) log('Make 回應狀態：' + res.status + '（這不一定代表失敗）');
+        if (!res.ok) log('Make 回應狀態：' + res.status + '（不一定代表失敗）');
         return true;
       }catch(err){
         log('送到 Make 失敗：' + err.message);
@@ -134,7 +129,6 @@
         const all = readParams();
         const data = mapToNeeded(all);
 
-        // 把資料塞到畫面
         setCell('order_time',   data.order_time);
         setCell('order_id',     data.order_id);
         setCell('email',        data.email);
@@ -145,12 +139,10 @@
         setCell('shipping_fee', data.shipping_fee);
         setCell('total_amount', data.total_amount);
 
-        // 若所有欄位皆空，提示你目前網址沒有帶任何參數
         if (Object.values(data).every(v => !v)) {
           log('未讀到任何既定欄位（time,order_id,email,store_name,delivery_method,pickup_note,order_details,shipping,total）。');
         }
 
-        // 導到 Make
         const ok = await postToMake(data);
         const line = document.getElementById('resultLine');
         line.innerHTML = ok

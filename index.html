@@ -8,7 +8,13 @@
 :root{--border:#e5e7eb;--muted:#6b7280;--text:#111827;--ok:#059669;--bad:#b91c1c;--brand:#3b82f6;--bg:#f8fafc;--surface:#fff}
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","Helvetica Neue",Arial,sans-serif;color:var(--text);background:var(--bg);-webkit-tap-highlight-color:transparent;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","Helvetica Neue",Arial,sans-serif;
+  color:var(--text);background:var(--bg);
+  -webkit-tap-highlight-color:transparent;
+  padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)
+}
 .wrap{max-width:840px;margin:32px auto;padding:0 12px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:20px}
 h1{margin:0 0 14px;text-align:center;letter-spacing:.08em;font-weight:800;font-size:22px}
@@ -33,7 +39,6 @@ h1{margin:0 0 14px;text-align:center;letter-spacing:.08em;font-weight:800;font-s
 code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-radius:6px}
 
 /* 區塊 */
-.actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 0}
 .bank{margin-top:12px}
 .bank h3{margin:0 0 8px;font-size:18px}
 .row{display:flex;gap:10px;flex-direction:column}
@@ -47,13 +52,17 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 .btn-line{background:#06c755;border-color:#06c755;color:#fff}
 .btn-ghost{background:#fff;border-style:dashed}
 
-/* 手機底部固定 */
-.mobile-bar{position:sticky;bottom:0;left:0;right:0;background:#ffffffea;border:1px solid var(--border);border-left:0;border-right:0;padding:10px;display:flex;gap:10px;backdrop-filter:blur(6px);z-index:20;border-top-left-radius:12px;border-top-right-radius:12px}
-.mobile-bar .btn{flex:1;padding:14px 16px;font-weight:700;font-size:16px}
-
-/* >=640px 回到左右欄表格 */
+/* 置頂固定的操作列（含背景霧面與細邊框） */
+.sticky-actions{
+  position:sticky; top:0; z-index:30;
+  margin:12px -10px 0; /* 拉出卡片左右內距，讓邊框貼齊 */
+  padding:10px;
+  background:#ffffffF2; backdrop-filter:blur(6px);
+  border:1px solid var(--border); border-left:0; border-right:0;
+  display:flex; gap:10px; flex-wrap:wrap;
+}
+.sticky-actions .btn{flex:1} /* 行動裝置每顆平均寬 */
 @media (min-width:640px){
-  .mobile-bar{display:none}
   .wrap{margin:48px auto;padding:0 16px}
   .card{padding:28px}
   h1{font-size:28px}
@@ -63,6 +72,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
   .table th{width:28%;background:#f9fafb}
   .table tbody tr:last-child th,.table tbody tr:last-child td{border-bottom:0}
   .row{flex-direction:row}
+  .sticky-actions{margin-left:-16px;margin-right:-16px}
 }
 </style>
 </head>
@@ -72,7 +82,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
     <h1>叫貨明細</h1>
     <p class="hint">以下為本次訂單資訊：</p>
 
-    <!-- 匯款資訊（搬到上方） -->
+    <!-- 匯款資訊（上方） -->
     <div class="notice bank">
       <h3>匯款資訊</h3>
       <div class="row">
@@ -89,8 +99,8 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
       </ul>
     </div>
 
-    <!-- 操作按鈕（搬到上方） -->
-    <div class="actions">
+    <!-- 置頂固定操作列 -->
+    <div class="sticky-actions">
       <a id="btnAddFriend" class="btn btn-line" href="#" target="_blank" rel="noopener">加入官方帳號</a>
       <button id="btnBindLiff" class="btn btn-primary" type="button">一鍵綁定（自動接收訂單）</button>
       <button id="btnSendLast5" class="btn btn-line" type="button">上傳後五碼（開啟 LINE）</button>
@@ -117,11 +127,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
   </div>
 </div>
 
-<!-- 手機底部固定列（保留快速操作） -->
-<div class="mobile-bar">
-  <button id="btnCopyBankMobile" class="btn" type="button">複製匯款帳號</button>
-  <button id="btnSendLast5Mobile" class="btn btn-line" type="button">上傳後五碼</button>
-</div>
+<!-- 已移除：手機底部快速操作列 -->
 
 <!-- LIFF SDK（綁定用） -->
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -131,8 +137,7 @@ const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bq
 const MAKE_BIND_URL   = "https://hook.eu2.make.com/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";   // 綁定 Webhook（Make 的 Scenario A）
 const MAKE_TEST_PUSH  = "https://hook.eu2.make.com/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy";   // （可選）測試推播 Webhook
 const LIFF_ID         = "YOUR_LIFF_ID";                                                 // LINE Developers 建立 LIFF 後取得
-const LINE_OFFICIAL_ID= "@185jccqz";                                                    // 你的官方帳號（參考用）
-const LINE_ADD_FRIEND_URL = "https://lin.ee/RTMwUYu";                                   // 你提供的加好友短連結
+const LINE_ADD_FRIEND_URL = "https://lin.ee/RTMwUYu";                                   // 你的加好友短連結
 // =================================
 
 // Glide 英文鍵 → 內部標準鍵
@@ -188,7 +193,7 @@ async function postOrderToMake(payload){
   }
 }
 
-// ===== 綁定：在中繼頁完成（直送 Make） =====
+// 綁定（直送 Make）
 async function bindWithLIFF(std){
   try{
     // 加好友按鈕設定
@@ -242,7 +247,7 @@ async function bindWithLIFF(std){
   }
 }
 
-// ===== 上傳後五碼 → 複製訊息並開 LINE =====
+// 上傳後五碼 → 複製訊息並開 LINE
 const LINE_MSG_DEEPLINK_PREFIX = "line://msg/text/";
 const LINE_ADD_FRIEND_URL_FULL = LINE_ADD_FRIEND_URL;
 function buildLineMessage(std,last5){
@@ -272,10 +277,10 @@ async function handleSendLast5(std){
   const msg = buildLineMessage(std,last5); await openLineAndPaste(msg);
 }
 
-// ===== 啟動 =====
+// 啟動
 (function init(){
   const std = readParamsStd();
-  window.std = std; // 方便除錯與測試按鈕
+  window.std = std;
 
   // 表格
   setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
@@ -307,15 +312,8 @@ async function handleSendLast5(std){
   });
 
   document.getElementById('btnSendLast5')?.addEventListener('click', ()=> handleSendLast5(std));
-  document.getElementById('btnSendLast5Mobile')?.addEventListener('click', ()=> handleSendLast5(std));
 
-  const btnCopyMobile = document.getElementById('btnCopyBankMobile');
-  btnCopyMobile?.addEventListener('click', async (e)=>{
-    const btn = e.currentTarget;
-    const acct=document.getElementById('bank_acct_txt').textContent.trim();
-    try{ await navigator.clipboard.writeText(acct); btn.textContent='已複製！'; setTimeout(()=> btn.textContent='複製匯款帳號',1200);}catch{}
-  });
-
+  // 已移除：手機底部列相關事件
   // （可選）測試推播：呼叫你的 Make 測試端點
   document.getElementById('btnTestPush')?.addEventListener('click', async ()=>{
     if(!MAKE_TEST_PUSH || MAKE_TEST_PUSH.includes('yyyyy')){ alert('尚未設定測試推播端點'); return; }

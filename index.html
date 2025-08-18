@@ -36,9 +36,13 @@
     .btn:active{transform:translateY(1px)}
     .btn-primary{background:#2563eb;border-color:#2563eb;color:#fff}
     .btn-line{background:#06c755;border-color:#06c755;color:#fff}
-    .btn-ghost{background:#fff;border-style:dashed}
     .sticky-actions{position:sticky;top:0;z-index:30;margin:12px -10px 0;padding:10px;background:#ffffffF2;backdrop-filter:blur(6px);border:1px solid var(--border);border-left:0;border-right:0;display:flex;gap:10px;flex-wrap:wrap;}
     .sticky-actions .btn{flex:1}
+    .toast{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:14px;display:none}
+    .toast.show{display:block}
+    .toast.success{background:#ecfdf5;border:1px solid #10b981;color:#065f46}
+    .toast.loading{background:#eef2ff;border:1px solid #6366f1;color:#3730a3}
+    .toast.error{background:#fef2f2;border:1px solid #f87171;color:#991b1b}
   </style>
 </head>
 <body>
@@ -63,11 +67,12 @@
       </div>
 
       <div class="sticky-actions">
-        <a id="btnAddFriend" class="btn btn-line" href="#" target="_blank" rel="noopener">加入官方帳號</a>
+        <a id="btnAddFriend" class="btn btn-line" href="https://lin.ee/RTMwUYu" target="_blank" rel="noopener">加入官方帳號</a>
         <button id="btnSendLast5" class="btn btn-line" type="button">上傳後五碼（開啟 LINE）</button>
       </div>
 
-      <div id="guardMsg" class="notice warn small" style="display:none;"></div>
+      <div id="toast" class="toast"></div>
+
       <p id="resultLine" class="footline">正在檢查必要欄位…</p>
 
       <table class="table">
@@ -87,7 +92,7 @@
   </div>
 
 <script>
-const OFFICIAL_LINE_ID = "174vvkhs"; // 不含 @
+const LINE_FRIEND_URL = "https://lin.ee/RTMwUYu";
 const enToStd = {
   order_time:'order_time', order_id:'order_id', email:'email',
   store_name:'store_name', delivery_method:'delivery_method',
@@ -101,9 +106,12 @@ const zhToStd = {
 };
 function decodeQS(s){ try{ return decodeURIComponent(String(s||'').replace(/\+/g,' ')); }catch{ return String(s||''); } }
 function setCell(id,val){ const el=document.getElementById(id); const v=(val==null||val==='')?'（空）':String(val); el.textContent=v; el.classList.toggle('muted',v==='（空）'); }
-function isValidEmail(s){ return !!(s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())); }
-function showGuard(html){ const box=document.getElementById('guardMsg'); box.style.display='block'; box.innerHTML=html; }
-function hideGuard(){ const box=document.getElementById('guardMsg'); box.style.display='none'; box.innerHTML=''; }
+function showToast(type, msg){
+  const toast = document.getElementById('toast');
+  toast.className = `toast show ${type}`;
+  toast.textContent = msg;
+  setTimeout(() => toast.classList.remove('show'), 4000);
+}
 function readParamsStd(){
   const std={}, usp=new URLSearchParams(location.search.startsWith('?')?location.search.slice(1):location.search);
   usp.forEach((v,k)=>{ const key=decodeQS(k).trim(), val=decodeQS(v).trim(); if(key in enToStd) std[enToStd[key]]=val; });
@@ -118,22 +126,21 @@ function buildLineMessage(std,last5){
   parts.push('匯款後五碼：'+(last5||''));
   return parts.join('\n');
 }
-async function openLineAndPaste(text){
-  try{ await navigator.clipboard.writeText(text); }catch{
-    const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
-    ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-  }
-  const deep = `https://line.me/R/oaMessage/${OFFICIAL_LINE_ID}/?${encodeURIComponent(text)}`;
-  try{
-    const a=document.createElement('a'); a.href=deep; a.style.display='none'; document.body.appendChild(a); a.click();
-    setTimeout(()=>{try{document.body.removeChild(a)}catch{}},1500);
-  }catch{}
-}
 async function handleSendLast5(std){
   let last5 = prompt('請輸入匯款後五碼：',''); if(last5==null) return;
   last5=String(last5).trim();
-  if(!/^\d{5}$/.test(last5)){ alert('格式不正確，請輸入 5 位數字。'); return; }
-  const msg = buildLineMessage(std,last5); await openLineAndPaste(msg);
+  if(!/^\d{5}$/.test(last5)){ showToast('error','格式錯誤，請輸入 5 位數字。'); return; }
+  const msg = buildLineMessage(std,last5);
+  try{
+    await navigator.clipboard.writeText(msg);
+    showToast('success', '📋 已複製訊息內容，可直接貼上傳送');
+  }catch{
+    showToast('error', '❌ 複製失敗，請手動複製');
+  }
+  showToast('loading','🚀 正在跳轉至官方 LINE，請稍候…');
+  setTimeout(() => {
+    window.location.href = LINE_FRIEND_URL;
+  }, 2000);
 }
 (function init(){
   const std = readParamsStd();
@@ -141,15 +148,6 @@ async function handleSendLast5(std){
   setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
   setCell('pickup_note',std.pickup_note); setCell('orders',std.orders);
   setCell('shipping_fee',std.shipping_fee); setCell('total_amount',std.total_amount);
-  document.getElementById('btnAddFriend').href = `https://line.me/R/oaMessage/${OFFICIAL_LINE_ID}/`;
-  const okEmail = isValidEmail(std.email);
-  if(!okEmail){
-    showGuard('未檢測到有效的 <b>信箱</b>，無法通知總部。');
-    document.getElementById('resultLine').innerHTML='⛔ 已停止通知：缺少有效信箱。';
-  }else{
-    hideGuard();
-    document.getElementById('resultLine').innerHTML='✅ 成功寄通知給總部';
-  }
   document.getElementById('btnSendLast5')?.addEventListener('click', ()=> handleSendLast5(std));
   document.getElementById('copyBtn')?.addEventListener('click', async (e)=>{
     const btn = e.currentTarget;

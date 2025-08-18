@@ -60,6 +60,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
   display:flex; gap:10px; flex-wrap:wrap;
 }
 .sticky-actions .btn{flex:1}
+
 @media (min-width:640px){
   .wrap{margin:48px auto;padding:0 16px}
   .card{padding:28px}
@@ -73,14 +74,9 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
   .sticky-actions{margin-left:-16px;margin-right:-16px}
 }
 
-/* 商品明細：數字清單（畫面） */
-.orders-list{
-  margin:0;
-  padding-left:1.5em;
-  list-style:decimal;
-  list-style-position:outside;
-}
-.orders-list li{ margin:3px 0; line-height:1.6; }
+/* 商 品 明 細：數字清單（畫面用） */
+.orders-list{margin:0;padding-left:1.5em;list-style:decimal;list-style-position:outside}
+.orders-list li{margin:3px 0;line-height:1.6}
 </style>
 </head>
 <body>
@@ -138,81 +134,95 @@ const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bq
 const LINE_ADD_FRIEND_URL = "https://lin.ee/RTMwUYu";
 // ===============================================
 
-// Glide 英文鍵 → 內部標準鍵
+// 英文鍵 → 內部標準鍵
 const enToStd = {
   order_time:'order_time', order_id:'order_id', email:'email',
   store_name:'store_name', delivery_method:'delivery_method',
   pickup_note:'pickup_note', order_details:'orders',
   shipping:'shipping_fee', total:'total_amount'
 };
-
-// 中文欄位名 → 內部標準鍵（顛倒格式）
+// 中文欄位名 → 內部標準鍵
 const zhToStd = {
   "訂單時間":"order_time","訂單編號":"order_id","信箱":"email","分店名稱":"store_name",
   "寄貨方式":"delivery_method","取貨備註":"pickup_note","商品明細":"orders",
   "實際運費":"shipping_fee","總計金額":"total_amount"
 };
 
-// 工具（維持你原本）
+// ------ 工具（保留你原本，另外新增更強的解析） ------
 function decodeQS(s){ try{ return decodeURIComponent(String(s||'').replace(/\+/g,' ')); }catch{ return String(s||''); } }
 function setCell(id,val){ const el=document.getElementById(id); const v=(val==null||val==='')?'（空）':String(val); el.textContent=v; el.classList.toggle('muted',v==='（空）'); }
 function isValidEmail(s){ return !!(s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())); }
 function showGuard(html){ const box=document.getElementById('guardMsg'); box.style.display='block'; box.innerHTML=html; }
 function hideGuard(){ const box=document.getElementById('guardMsg'); box.style.display='none'; box.innerHTML=''; }
-
-// ★ 新增：安全塞入 HTML（給商品明細使用）
-function setCellHTML(id, html){
-  const el = document.getElementById(id);
-  if(html && String(html).trim()!==''){ el.innerHTML = html; el.classList.remove('muted'); }
-  else { el.textContent = '（空）'; el.classList.add('muted'); }
-}
+function setCellHTML(id, html){ const el=document.getElementById(id); const ok = html && String(html).trim()!==''; if(ok){ el.innerHTML=html; el.classList.remove('muted'); } else { el.textContent='（空）'; el.classList.add('muted'); } }
 function escapeHTML(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-// 解析網址（支援英文鍵與顛倒格式）—保持你原本的寫法
+// 兼容取得 query（支援 ? 與 #；也容忍前面多了 ?&）
+function getQueryString(){
+  let raw = '';
+  if (location.search && location.search.startsWith('?')) raw = location.search.slice(1);
+  if (!raw && location.hash){
+    const h = location.hash;
+    const qPos = h.indexOf('?');
+    raw = (qPos >= 0) ? h.slice(qPos+1) : (h.startsWith('#') ? h.slice(1) : h);
+  }
+  return String(raw||'').replace(/^\?*&+/, '').trim();
+}
+// 安全解碼（容忍未編碼空白與全形字）
+function safeDecode(str){
+  try { return decodeURIComponent(String(str||'').replace(/\+/g,' ')); }
+  catch { return String(str||'').replace(/\+/g,' '); }
+}
+
+// ★ 強化版解析：同時支援
+//   a) 英文鍵=值 （order_time=2025…）
+//   b) 值=中文鍵（2025…=訂單時間）← 你的實際情況
+//   c) 中文鍵=值（訂單時間=2025…）
 function readParamsStd(){
-  const std={}, usp=new URLSearchParams(location.search.startsWith('?')?location.search.slice(1):location.search);
-  usp.forEach((v,k)=>{ const key=decodeQS(k).trim(), val=decodeQS(v).trim(); if(key in enToStd) std[enToStd[key]]=val; });
-  usp.forEach((v,k)=>{ const maybeValue=decodeQS(k).trim(), maybeLabel=decodeQS(v).trim(); const stdKey=zhToStd[maybeLabel]; if(stdKey && (std[stdKey]==null||std[stdKey]==='')) std[stdKey]=maybeValue; });
+  const std = {};
+  const raw = getQueryString();
+  if (!raw) return std;
+
+  const pairs = raw.split('&').filter(Boolean);
+  for (const pair of pairs){
+    const eq = pair.lastIndexOf('=');
+    let left = pair, right = '';
+    if (eq >= 0){ left = pair.slice(0, eq); right = pair.slice(eq+1); }
+
+    const L = safeDecode(left).trim();
+    const R = safeDecode(right).trim();
+    if (!L && !R) continue;
+
+    if (L in enToStd && R !== ''){                       // 英文鍵=值
+      const key=enToStd[L]; if (std[key]==null||std[key]==='') std[key]=R; continue;
+    }
+    if (L in zhToStd && R !== ''){                        // 中文鍵=值
+      const key=zhToStd[L]; if (std[key]==null||std[key]==='') std[key]=R; continue;
+    }
+    if (R in zhToStd && L !== ''){                        // 值=中文鍵（顛倒）
+      const key=zhToStd[R]; if (std[key]==null||std[key]==='') std[key]=L; continue;
+    }
+  }
   return std;
 }
 
-/* === 新增：商品明細解析 ===
-   支援：
-   - （整件）品名 x 3
-   - 品名 x 3 （單品項）
-   - 品名 x 3
-   分隔符支援 x / X / ×；只顯示一個標籤（避免重複）
-*/
+/* ===== 商品明細解析（支援 x/X/×；標籤可在前或後；避免重複） ===== */
 function parseOrders(raw){
-  let t = String(raw||'')
-    .replace(/\s+/g,' ')
-    .replace(/\s*[xX×]\s*$/,'')
-    .trim();
-
-  const items = [];
-  const re = /(?:[（(]\s*([^（）)]+?)\s*[）)])?\s*(.+?)\s*[xX×]\s*(\d+)(?:\s*[（(]\s*([^（）)]+?)\s*[）)])?/gx;
-
+  let t = String(raw||'').replace(/\s+/g,' ').replace(/\s*[xX×]\s*$/,'').trim();
+  const items=[], re=/(?:[（(]\s*([^（）)]+?)\s*[）)])?\s*(.+?)\s*[xX×]\s*(\d+)(?:\s*[（(]\s*([^（）)]+?)\s*[）)])?/gx;
   let m;
-  while((m = re.exec(t))){
-    let leadTag=(m[1]||'').trim(), name=(m[2]||'').trim(), qty=(m[3]||'').trim(), trailTag=(m[4]||'').trim();
-
-    // 如果品名本身以（標籤）開頭，就抽出當標籤（避免重複）
-    name = name.replace(/^\s*[（(]\s*([^（）)]+?)\s*[）)]\s*/, (_,tg)=>{
-      if(!leadTag && !trailTag) leadTag = (tg||'').trim();
-      return '';
-    }).trim();
-
-    const tag = leadTag || trailTag || '';
-    name = name.replace(/\s*[xX×]\s*$/,'');
-    items.push({name, qty, tag});
+  while((m=re.exec(t))){
+    let lead=(m[1]||'').trim(), name=(m[2]||'').trim(), qty=(m[3]||'').trim(), trail=(m[4]||'').trim();
+    name=name.replace(/^\s*[（(]\s*([^（）)]+?)\s*[）)]\s*/,(_,tg)=>{ if(!lead&&!trail) lead=(tg||'').trim(); return ''; }).trim();
+    const tag = lead || trail || '';
+    name=name.replace(/\s*[xX×]\s*$/,'');
+    items.push({name,qty,tag});
   }
-  if(items.length===0 && t) items.push({name:t, qty:'', tag:''});
+  if(items.length===0 && t) items.push({name:t,qty:'',tag:''});
   return items;
 }
-
-// 畫面：數字清單（標籤在左）
 function formatOrdersHTML(raw){
-  const items = parseOrders(raw);
+  const items=parseOrders(raw);
   if(!items.length) return '';
   const lis = items.map(it=>{
     const tag = it.tag ? `（${escapeHTML(it.tag)}）` : '';
@@ -220,17 +230,12 @@ function formatOrdersHTML(raw){
   }).join('');
   return `<ol class="orders-list">${lis}</ol>`;
 }
-
-// 複製到 LINE：多行數字條列
 function formatOrdersText(raw){
-  const items = parseOrders(raw);
-  return items.map((it,i)=>{
-    const tag = it.tag ? `（${it.tag}）` : '';
-    return `${i+1}. ${tag}${it.name} × ${it.qty}`;
-  }).join('\n');
+  const items=parseOrders(raw);
+  return items.map((it,i)=>`${i+1}. ${it.tag?`（${it.tag}）`:''}${it.name} × ${it.qty}`).join('\n');
 }
 
-// 組訂單 payload（給 Make 訂單用）—保持原本
+// 組訂單 payload（原樣）
 function buildOrderPayload(std){
   return {
     '訂單時間':std.order_time||'','訂單編號':std.order_id||'','信箱':std.email||'','分店名稱':std.store_name||'',
@@ -243,7 +248,7 @@ function buildOrderPayload(std){
   };
 }
 
-// 建立要貼到 LINE 的完整明細文字（商品明細→條列）
+// 貼到 LINE（商品明細→多行數字條列）
 function buildLineText(std){
   const lines = [
     '【匯款後五碼回報】',
@@ -254,7 +259,7 @@ function buildLineText(std){
     `寄貨方式：${std.delivery_method||''}`,
     `取貨備註：${std.pickup_note||''}`,
     '商品明細：',
-    formatOrdersText(std.orders||''), // ← 多行數字條列
+    formatOrdersText(std.orders||''),
     '',
     `實際運費：${std.shipping_fee||''}`,
     `總計金額：${std.total_amount||''}`,
@@ -263,69 +268,52 @@ function buildLineText(std){
   return lines.join('\n');
 }
 
-// 嘗試開啟 LINE 並貼上文字（失敗時改導到加好友）
+// 開啟 LINE 並貼上
 async function openLineAndPaste(text){
   try{ await navigator.clipboard.writeText(text); }
-  catch{
-    const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
-    ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-  }
+  catch{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
   alert('已複製訂單明細。\n將為你開啟 LINE，請貼上並補上「匯款後五碼」。');
   const deep = "line://msg/text/" + encodeURIComponent(text);
-  try{
-    const a=document.createElement('a'); a.href=deep; a.style.display='none'; document.body.appendChild(a); a.click();
-    setTimeout(()=>{try{document.body.removeChild(a)}catch{}},1500);
-  }catch{}
+  try{ const a=document.createElement('a'); a.href=deep; a.style.display='none'; document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(),1500);}catch{}
   setTimeout(()=>{ window.location.href = LINE_ADD_FRIEND_URL; },800);
 }
 
-// 背景送 Make（訂單）
+// 背景送 Make
 async function postOrderToMake(payload){
   try{
     await fetch(MAKE_WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({__emailjs__:payload})});
     document.getElementById('resultLine').innerHTML='✅ <span class="ok">成功</span>寄通知給總部';
-  }catch(_){
-    document.getElementById('resultLine').innerHTML='❌ <span class="bad">失敗</span>寄通知給總部';
-  }
+  }catch{ document.getElementById('resultLine').innerHTML='❌ <span class="bad">失敗</span>寄通知給總部'; }
 }
 
-// 啟動（維持你原本流程）
+// 啟動
 (function init(){
-  const std = readParamsStd();
+  const std = readParamsStd();  // ← 這版能吃你提供的網址模板最終產生的顛倒格式
   window.std = std;
 
   // 表格
   setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
   setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
   setCell('pickup_note',std.pickup_note);
-  // ★ 僅此處改為清單顯示
-  setCellHTML('orders', formatOrdersHTML(std.orders||''));
+  setCellHTML('orders', formatOrdersHTML(std.orders||''));  // 商品明細→清單
   setCell('shipping_fee',std.shipping_fee); setCell('total_amount',std.total_amount);
 
-  // 訂單通知防呆（需要有效 email）
-  const okEmail = isValidEmail(std.email);
-  if(!okEmail){
+  // 通知總部（需要有效 Email）
+  if(!isValidEmail(std.email)){
     showGuard('未檢測到有效的 <b>信箱</b>，本次不會通知總部（避免寄出空白/錯誤資料）。<br>請確認 Glide 帶入參數包含 <code>email</code> 或顛倒格式中含「信箱」。');
     document.getElementById('resultLine').innerHTML='⛔ 已停止通知：缺少有效信箱。';
   }else{
     hideGuard();
     document.getElementById('resultLine').innerHTML='已檢核通過，正在通知總部…';
-    const payload = buildOrderPayload(std);
-    postOrderToMake(payload);
+    postOrderToMake(buildOrderPayload(std));
   }
 
-  // 事件：複製帳號
+  // 事件
   document.getElementById('copyBtn')?.addEventListener('click', async (e)=>{
-    const btn = e.currentTarget;
-    const acct=document.getElementById('bank_acct_txt').textContent.trim();
-    try{ await navigator.clipboard.writeText(acct); btn.textContent='已複製！'; setTimeout(()=> btn.textContent='複製帳號',1200); }catch{}
+    const btn=e.currentTarget; const acct=document.getElementById('bank_acct_txt').textContent.trim();
+    try{ await navigator.clipboard.writeText(acct); btn.textContent='已複製！'; setTimeout(()=> btn.textContent='複製帳號',1200);}catch{}
   });
-
-  // 事件：上傳後五碼（開啟 LINE）
-  document.getElementById('btnSendLast5')?.addEventListener('click', ()=>{
-    const text = buildLineText(std);
-    openLineAndPaste(text);
-  });
+  document.getElementById('btnSendLast5')?.addEventListener('click', ()=>{ openLineAndPaste(buildLineText(std)); });
 })();
 </script>
 </body>

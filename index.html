@@ -179,28 +179,49 @@ function readParamsStd(){
   return std;
 }
 
-// ===== 商品明細：解析（支援 x / X / ×；並清掉尾端多餘的 x/×）=====
+/* ===== 商品明細解析 2.0：支援「前置或後置標籤」，並防重複 =====
+   三種寫法皆可：
+   1) （整件）品名 x 3
+   2) 品名 x 3 （整件）
+   3) 品名 x 3
+   分隔符支援 x / X / × ；括號支援全形（ ）與半形( )
+*/
 function parseOrders(raw){
-  const t = String(raw||'')
-    .replace(/\s+/g,' ')       // 壓縮空白
-    .replace(/\s*[xX×]\s*$/,'')// 去掉結尾多餘分隔
+  let t = String(raw||'')
+    .replace(/\s+/g,' ')
+    .replace(/\s*[xX×]\s*$/,'')
     .trim();
 
   const items = [];
-  // 例：品名 x 3 (整件)  或  品名 × 1 （單品項），括號可有可無
-  const re = /(.+?)\s*[xX×]\s*(\d+)(?:\s*[（(]\s*([^（）)]+?)\s*[）)])?/g;
+  const re = /(?:[（(]\s*([^（）)]+?)\s*[）)])?\s*   # 前置標籤(可無)
+              (.+?)\s*                              # 品名(懶惰)
+              [xX×]\s*(\d+)                         # 數量
+              (?:\s*[（(]\s*([^（）)]+?)\s*[）)])?   # 後置標籤(可無)
+             /gx;
+
   let m;
   while ((m = re.exec(t))) {
-    const name = m[1].trim();
-    const qty  = m[2].trim();
-    const tag  = (m[3]||'').trim();
+    let leadTag  = (m[1]||'').trim();
+    let name     = (m[2]||'').trim();
+    let qty      = (m[3]||'').trim();
+    let trailTag = (m[4]||'').trim();
+
+    // 如果品名本身以（標籤）開頭，抽出成標籤（避免重複）
+    name = name.replace(/^\s*[（(]\s*([^（）)]+?)\s*[）)]\s*/, (_, tagInName)=>{
+      if (!leadTag && !trailTag) leadTag = (tagInName||'').trim();
+      return '';
+    }).trim();
+
+    const tag = leadTag || trailTag || '';
+    name = name.replace(/\s*[xX×]\s*$/,''); // 清除尾端殘留分隔
     items.push({ name, qty, tag });
   }
+
   if (items.length===0 && t) items.push({ name:t, qty:'', tag:'' });
   return items;
 }
 
-// 畫面用（HTML）：數字清單、標籤在左
+// 畫面用（HTML）：數字清單，標籤在左
 function formatOrdersHTML(raw){
   const items = parseOrders(raw);
   const lis = items.map(it=>{
@@ -242,16 +263,6 @@ function buildLineText(std){
   return [...linesTop, ...linesBottom].join('\n');
 }
 
-// 背景送 Make（訂單）
-async function postOrderToMake(payload){
-  try{
-    await fetch(MAKE_WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({__emailjs__:payload})});
-    document.getElementById('resultLine').innerHTML='✅ <span class="ok">成功</span>寄通知給總部';
-  }catch(_){
-    document.getElementById('resultLine').innerHTML='❌ <span class="bad">失敗</span>寄通知給總部';
-  }
-}
-
 // 組訂單 payload（給 Make 訂單用）
 function buildOrderPayload(std){
   return {
@@ -263,6 +274,16 @@ function buildOrderPayload(std){
     shipping_fee:std.shipping_fee||'', total_amount:std.total_amount||'',
     _source_url:location.href
   };
+}
+
+// 背景送 Make（訂單）
+async function postOrderToMake(payload){
+  try{
+    await fetch(MAKE_WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({__emailjs__:payload})});
+    document.getElementById('resultLine').innerHTML='✅ <span class="ok">成功</span>寄通知給總部';
+  }catch(_){
+    document.getElementById('resultLine').innerHTML='❌ <span class="bad">失敗</span>寄通知給總部';
+  }
 }
 
 // 嘗試開啟 LINE 並貼上文字（失敗時改導到加好友）
@@ -296,7 +317,7 @@ async function openLineAndPaste(text){
   setCellText('shipping_fee',std.shipping_fee);
   setCellText('total_amount',std.total_amount);
 
-  // 商品明細：數字清單（標籤在左）
+  // 商品明細：數字清單（標籤在左；自動分段）
   setCellHTML('orders', formatOrdersHTML(std.orders||''));
 
   // 通知防呆 + 背景送 Make
@@ -318,7 +339,7 @@ async function openLineAndPaste(text){
 
   // 事件：上傳後五碼（開啟 LINE）
   document.getElementById('btnSendLast5')?.addEventListener('click', ()=>{
-    const text = buildLineText(std);   // ← 已是數字條列＋段落
+    const text = buildLineText(std);   // 數字條列 + 段落
     openLineAndPaste(text);
   });
 })();

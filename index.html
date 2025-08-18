@@ -136,7 +136,6 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 <script>
 // ====== 你只需要改這裡（Make 設定）======
 const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf";
-// ====== LINE 官方帳號連結（加好友 / 後備跳轉）======
 const LINE_ADD_FRIEND_URL = "https://lin.ee/RTMwUYu";
 // ===============================================
 
@@ -195,9 +194,9 @@ function readParamsStd(){
     const R = safeDecode(right).trim();
     if (!L && !R) continue;
 
-    if (L in enToStd && R !== ''){ const k=enToStd[L]; if (std[k]==null||std[k]==='') std[k]=R; continue; } // 英文鍵=值
-    if (L in zhToStd && R !== ''){ const k=zhToStd[L]; if (std[k]==null||std[k]==='') std[k]=R; continue; } // 中文鍵=值
-    if (R in zhToStd && L !== ''){ const k=zhToStd[R]; if (std[k]==null||std[k]==='') std[k]=L; continue; } // 值=中文鍵（顛倒）
+    if (L in enToStd && R !== ''){ const k=enToStd[L]; if (std[k]==null||std[k]==='') std[k]=R; continue; }
+    if (L in zhToStd && R !== ''){ const k=zhToStd[L]; if (std[k]==null||std[k]==='') std[k]=R; continue; }
+    if (R in zhToStd && L !== ''){ const k=zhToStd[R]; if (std[k]==null||std[k]==='') std[k]=L; continue; }
   }
   return std;
 }
@@ -210,8 +209,8 @@ function parseOrders(raw){
   let t = String(raw || '').replace(/\s+/g,' ').trim();
   if (!t) return [];
 
-  // 強化分段：數量後 → 下一個是（ 或 ( 或 中文，皆視為下一筆的開始
-  t = t.replace(/([xX×]\s*\d+)\s*(?=(?:[（(]|[\u4E00-\u9FFF]))/gu, '$1|');
+  // 強化分段：數量後 → （ 或 ( 或 中文；允許中間有空白
+  t = t.replace(/([xX×]\s*\d+)\s*(?=\s*(?:[（(]|[\u4E00-\u9FFF]))/g, '$1|');
 
   const chunks = t.split('|').map(s => s.trim()).filter(Boolean);
   const items = [];

@@ -210,8 +210,8 @@ function parseOrders(raw){
   let t = String(raw || '').replace(/\s+/g,' ').trim();
   if (!t) return [];
 
-  // 在「數量」後、遇到下一段開頭的「（」之前插入分隔符 |
-  t = t.replace(/([xX×]\s*\d+)\s*(?=（)/g, '$1|');
+  // 強化分段：數量後 → 下一個是（ 或 ( 或 中文，皆視為下一筆的開始
+  t = t.replace(/([xX×]\s*\d+)\s*(?=(?:[（(]|[\u4E00-\u9FFF]))/gu, '$1|');
 
   const chunks = t.split('|').map(s => s.trim()).filter(Boolean);
   const items = [];
@@ -226,7 +226,7 @@ function parseOrders(raw){
       if (!ALLOWED_TAGS.has(tag)) tag = '';
       items.push({ name, qty, tag });
     }else{
-      items.push({ name: ch, qty: '', tag: '' });
+      items.push({ name: ch, qty: '', tag: '' }); // 萬一沒對到也不丟資料
     }
   }
   return items;

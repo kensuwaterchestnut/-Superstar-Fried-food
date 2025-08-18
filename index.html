@@ -26,15 +26,9 @@
     .notice{margin-top:16px;background:#f0f9ff;border:1px solid #dbeafe;border-radius:12px;padding:14px}
     .warn{background:#fff7ed;border-color:#ffedd5}
     .small{font-size:14px}
-    code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-radius:6px}
     .bank{margin-top:12px}
-    .bank h3{margin:0 0 8px;font-size:18px}
-    .row{display:flex;gap:10px;flex-direction:column}
     .kv{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f9fafb;border:1px solid var(--border);padding:12px;border-radius:12px}
-    .kv b{font-size:14px}
     .btn{cursor:pointer;border:1px solid var(--border);background:#fff;border-radius:10px;padding:10px 14px;font-size:15px;touch-action:manipulation;min-width:120px}
-    .btn:active{transform:translateY(1px)}
-    .btn-primary{background:#2563eb;border-color:#2563eb;color:#fff}
     .btn-line{background:#06c755;border-color:#06c755;color:#fff}
     .sticky-actions{position:sticky;top:0;z-index:30;margin:12px -10px 0;padding:10px;background:#ffffffF2;backdrop-filter:blur(6px);border:1px solid var(--border);border-left:0;border-right:0;display:flex;gap:10px;flex-wrap:wrap;}
     .sticky-actions .btn{flex:1}
@@ -50,7 +44,6 @@
     <div class="card">
       <h1>叫貨明細</h1>
       <p class="hint">以下為本次訂單資訊：</p>
-
       <div class="notice bank">
         <h3>匯款資訊</h3>
         <div class="row">
@@ -65,16 +58,11 @@
           <li>匯款後請提供<b>後五碼</b>傳送至總部官方帳號。</li>
         </ul>
       </div>
-
       <div class="sticky-actions">
-        <a id="btnAddFriend" class="btn btn-line" href="https://lin.ee/RTMwUYu" target="_blank" rel="noopener">加入官方帳號</a>
         <button id="btnSendLast5" class="btn btn-line" type="button">上傳後五碼（開啟 LINE）</button>
       </div>
-
       <div id="toast" class="toast"></div>
-
       <p id="resultLine" class="footline">正在檢查必要欄位…</p>
-
       <table class="table">
         <tbody>
           <tr><th>訂單時間</th><td id="order_time" class="muted">（空）</td></tr>
@@ -90,69 +78,60 @@
       </table>
     </div>
   </div>
-
 <script>
-const LINE_FRIEND_URL = "https://lin.ee/RTMwUYu";
-const enToStd = {
-  order_time:'order_time', order_id:'order_id', email:'email',
-  store_name:'store_name', delivery_method:'delivery_method',
-  pickup_note:'pickup_note', order_details:'orders',
-  shipping:'shipping_fee', total:'total_amount'
-};
-const zhToStd = {
-  "訂單時間":"order_time","訂單編號":"order_id","信箱":"email","分店名稱":"store_name",
-  "寄貨方式":"delivery_method","取貨備註":"pickup_note","商品明細":"orders",
-  "實際運費":"shipping_fee","總計金額":"total_amount"
-};
-function decodeQS(s){ try{ return decodeURIComponent(String(s||'').replace(/\+/g,' ')); }catch{ return String(s||''); } }
-function setCell(id,val){ const el=document.getElementById(id); const v=(val==null||val==='')?'（空）':String(val); el.textContent=v; el.classList.toggle('muted',v==='（空）'); }
+const LINE_OA_ID = "@185jccqz";
 function showToast(type, msg){
   const toast = document.getElementById('toast');
   toast.className = `toast show ${type}`;
   toast.textContent = msg;
   setTimeout(() => toast.classList.remove('show'), 4000);
 }
-function readParamsStd(){
-  const std={}, usp=new URLSearchParams(location.search.startsWith('?')?location.search.slice(1):location.search);
-  usp.forEach((v,k)=>{ const key=decodeQS(k).trim(), val=decodeQS(v).trim(); if(key in enToStd) std[enToStd[key]]=val; });
-  usp.forEach((v,k)=>{ const maybeValue=decodeQS(k).trim(), maybeLabel=decodeQS(v).trim(); const stdKey=zhToStd[maybeLabel]; if(stdKey && (std[stdKey]==null||std[stdKey]==='')) std[stdKey]=maybeValue; });
-  return std;
+function setCell(id,val){
+  const el=document.getElementById(id);
+  const v=(val==null||val==='')?'（空）':String(val);
+  el.textContent=v; el.classList.toggle('muted',v==='（空）');
 }
-function buildLineMessage(std,last5){
+function readParams(){
+  const map={}, usp=new URLSearchParams(location.search);
+  usp.forEach((v,k)=> map[k.trim()] = v.trim());
+  return map;
+}
+function buildMsg(p,last5){
   const parts=['【匯款後五碼回報】'];
-  if(std.order_id) parts.push('訂單編號：'+std.order_id);
-  if(std.store_name) parts.push('分店：'+std.store_name);
-  if(std.total_amount) parts.push('總金額：'+std.total_amount);
-  parts.push('匯款後五碼：'+(last5||''));
+  if(p['order_id']) parts.push('訂單編號：'+p['order_id']);
+  if(p['store_name']) parts.push('分店：'+p['store_name']);
+  if(p['total']) parts.push('總金額：'+p['total']);
+  parts.push('匯款後五碼：'+last5);
   return parts.join('\n');
 }
-async function handleSendLast5(std){
-  let last5 = prompt('請輸入匯款後五碼：',''); if(last5==null) return;
-  last5=String(last5).trim();
-  if(!/^\d{5}$/.test(last5)){ showToast('error','格式錯誤，請輸入 5 位數字。'); return; }
-  const msg = buildLineMessage(std,last5);
-  try{
-    await navigator.clipboard.writeText(msg);
-    showToast('success', '📋 已複製訊息內容，可直接貼上傳送');
-  }catch{
-    showToast('error', '❌ 複製失敗，請手動複製');
-  }
-  showToast('loading','🚀 正在跳轉至官方 LINE，請稍候…');
-  setTimeout(() => {
-    window.location.href = LINE_FRIEND_URL;
-  }, 2000);
+async function handleSendLast5(p){
+  let last5 = prompt('請輸入匯款後五碼：',''); if(!last5) return;
+  last5 = String(last5).trim();
+  if(!/^\d{5}$/.test(last5)){ showToast('error','格式錯誤，請輸入 5 位數字'); return; }
+  const msg = buildMsg(p, last5);
+  try{ await navigator.clipboard.writeText(msg); showToast('success','✅ 已複製訊息'); }
+  catch{ showToast('error','❌ 複製失敗，請手動複製'); }
+  showToast('loading','🚀 正在跳轉至 LINE...');
+  const link = `https://line.me/R/oaMessage/${LINE_OA_ID}/?${encodeURIComponent(msg)}`;
+  setTimeout(() => { window.location.href = link; }, 2000);
 }
 (function init(){
-  const std = readParamsStd();
-  setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
-  setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
-  setCell('pickup_note',std.pickup_note); setCell('orders',std.orders);
-  setCell('shipping_fee',std.shipping_fee); setCell('total_amount',std.total_amount);
-  document.getElementById('btnSendLast5')?.addEventListener('click', ()=> handleSendLast5(std));
-  document.getElementById('copyBtn')?.addEventListener('click', async (e)=>{
-    const btn = e.currentTarget;
-    const acct=document.getElementById('bank_acct_txt').textContent.trim();
-    try{ await navigator.clipboard.writeText(acct); btn.textContent='已複製！'; setTimeout(()=> btn.textContent='複製帳號',1200); }catch{}
+  const p = readParams();
+  setCell('order_time', p['order_time']);
+  setCell('order_id', p['order_id']);
+  setCell('email', p['email']);
+  setCell('store_name', p['store_name']);
+  setCell('delivery_method', p['delivery_method']);
+  setCell('pickup_note', p['pickup_note']);
+  setCell('orders', p['order_details']);
+  setCell('shipping_fee', p['shipping']);
+  setCell('total_amount', p['total']);
+  document.getElementById('btnSendLast5')?.addEventListener('click', ()=> handleSendLast5(p));
+  document.getElementById('copyBtn')?.addEventListener('click', async ()=>{
+    try{
+      await navigator.clipboard.writeText(document.getElementById('bank_acct_txt').textContent.trim());
+      showToast('success','📋 已複製帳號');
+    }catch{}
   });
 })();
 </script>

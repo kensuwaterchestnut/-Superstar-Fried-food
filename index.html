@@ -39,18 +39,6 @@
     .btn-ghost{background:#fff;border-style:dashed}
     .sticky-actions{position:sticky;top:0;z-index:30;margin:12px -10px 0;padding:10px;background:#ffffffF2;backdrop-filter:blur(6px);border:1px solid var(--border);border-left:0;border-right:0;display:flex;gap:10px;flex-wrap:wrap;}
     .sticky-actions .btn{flex:1}
-    @media (min-width:640px){
-      .wrap{margin:48px auto;padding:0 16px}
-      .card{padding:28px}
-      h1{font-size:28px}
-      .table{table-layout:fixed}
-      .table tbody tr{display:table-row;padding:0}
-      .table th,.table td{display:table-cell;padding:14px 16px;border-bottom:1px solid var(--border)}
-      .table th{width:28%;background:#f9fafb}
-      .table tbody tr:last-child th,.table tbody tr:last-child td{border-bottom:0}
-      .row{flex-direction:row}
-      .sticky-actions{margin-left:-16px;margin-right:-16px}
-    }
   </style>
 </head>
 <body>
@@ -99,7 +87,7 @@
   </div>
 
 <script>
-const LINE_ADD_FRIEND_URL = "https://lin.ee/RTMwUYu";
+const OFFICIAL_LINE_ID = "174vvkhs"; // 不含 @
 const enToStd = {
   order_time:'order_time', order_id:'order_id', email:'email',
   store_name:'store_name', delivery_method:'delivery_method',
@@ -135,12 +123,11 @@ async function openLineAndPaste(text){
     const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
     ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
   }
-  const deep = "line://msg/text/" + encodeURIComponent(text);
+  const deep = `https://line.me/R/oaMessage/${OFFICIAL_LINE_ID}/?${encodeURIComponent(text)}`;
   try{
     const a=document.createElement('a'); a.href=deep; a.style.display='none'; document.body.appendChild(a); a.click();
     setTimeout(()=>{try{document.body.removeChild(a)}catch{}},1500);
   }catch{}
-  setTimeout(()=>{ window.location.href = LINE_ADD_FRIEND_URL; },800);
 }
 async function handleSendLast5(std){
   let last5 = prompt('請輸入匯款後五碼：',''); if(last5==null) return;
@@ -148,23 +135,21 @@ async function handleSendLast5(std){
   if(!/^\d{5}$/.test(last5)){ alert('格式不正確，請輸入 5 位數字。'); return; }
   const msg = buildLineMessage(std,last5); await openLineAndPaste(msg);
 }
-
 (function init(){
   const std = readParamsStd();
   setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
   setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
   setCell('pickup_note',std.pickup_note); setCell('orders',std.orders);
   setCell('shipping_fee',std.shipping_fee); setCell('total_amount',std.total_amount);
-  document.getElementById('btnAddFriend').href = LINE_ADD_FRIEND_URL;
+  document.getElementById('btnAddFriend').href = `https://line.me/R/oaMessage/${OFFICIAL_LINE_ID}/`;
   const okEmail = isValidEmail(std.email);
   if(!okEmail){
     showGuard('未檢測到有效的 <b>信箱</b>，無法通知總部。');
     document.getElementById('resultLine').innerHTML='⛔ 已停止通知：缺少有效信箱。';
   }else{
     hideGuard();
-    document.getElementById('resultLine').innerHTML='✅  成功寄通知給總部';
+    document.getElementById('resultLine').innerHTML='✅ 成功寄通知給總部';
   }
-
   document.getElementById('btnSendLast5')?.addEventListener('click', ()=> handleSendLast5(std));
   document.getElementById('copyBtn')?.addEventListener('click', async (e)=>{
     const btn = e.currentTarget;

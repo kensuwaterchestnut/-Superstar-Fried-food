@@ -28,7 +28,7 @@ h1{margin:0 0 14px;text-align:center;letter-spacing:.08em;font-weight:800;font-s
 .table th{margin:0 0 6px;color:#111827;font-weight:700;font-size:13px}
 .table td{font-size:15px;line-height:1.6}
 .muted{color:var(--muted)}
-.prewrap{white-space:pre-wrap}
+.prewrap{white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;} /* ← 自動換行更強 */
 
 /* 狀態與提示 */
 .footline{margin-top:12px;border-left:4px solid var(--brand);padding:10px 12px;color:var(--muted);border-radius:8px;background:#f8fbff;font-size:14px}
@@ -60,6 +60,13 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
   display:flex; gap:10px; flex-wrap:wrap;
 }
 .sticky-actions .btn{flex:1}
+
+/* 手機：整體置中 */
+@media (max-width: 480px){
+  .card{margin-left:auto;margin-right:auto;}
+  .table th,.table td{ text-align:center; }   /* ← 手機置中 */
+}
+
 @media (min-width:640px){
   .wrap{margin:48px auto;padding:0 16px}
   .card{padding:28px}
@@ -146,7 +153,14 @@ const zhToStd = {
 
 // 工具
 function decodeQS(s){ try{ return decodeURIComponent(String(s||'').replace(/\+/g,' ')); }catch{ return String(s||''); } }
-function setCell(id,val){ const el=document.getElementById(id); const v=(val==null||val==='')?'（空）':String(val); el.textContent=v; el.classList.toggle('muted',v==='（空）'); }
+function setCellText(id,val){
+  const el=document.getElementById(id); const v=(val==null||val==='')?'（空）':String(val);
+  el.textContent=v; el.classList.toggle('muted',v==='（空）');
+}
+function setCellHTML(id,html){
+  const el=document.getElementById(id); const ok = html && String(html).trim()!=='';
+  el.innerHTML = ok ? html : '（空）'; el.classList.toggle('muted',!ok);
+}
 function isValidEmail(s){ return !!(s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())); }
 function showGuard(html){ const box=document.getElementById('guardMsg'); box.style.display='block'; box.innerHTML=html; }
 function hideGuard(){ const box=document.getElementById('guardMsg'); box.style.display='none'; box.innerHTML=''; }
@@ -157,6 +171,28 @@ function readParamsStd(){
   usp.forEach((v,k)=>{ const key=decodeQS(k).trim(), val=decodeQS(v).trim(); if(key in enToStd) std[enToStd[key]]=val; });
   usp.forEach((v,k)=>{ const maybeValue=decodeQS(k).trim(), maybeLabel=decodeQS(v).trim(); const stdKey=zhToStd[maybeLabel]; if(stdKey && (std[stdKey]==null||std[stdKey]==='')) std[stdKey]=maybeValue; });
   return std;
+}
+
+// 安全轉義
+function escapeHTML(s){
+  return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* 
+  讓只有「空格分隔」的商品明細自動分行：
+  1) 先把 ) / ） 後面的空白換成 <br>
+  2) 再偵測下一個「品名 × 數量」的開頭，把前面的空白換成 <br>
+*/
+function formatOrdersHTML(raw){
+  let t = escapeHTML(raw).replace(/\s+/g,' ').trim();
+  if(!t) return '';
+  // 在 ) 或 ） 後換行
+  t = t.replace(/[)）]\s*/g, m => m.trimEnd() + '<br>');
+  // 在「下一個 品名 × 數量」前換行（避免把一個品項拆開）
+  t = t.replace(/\s+(?=[^ <>\n]+?\s*×\s*\d+)/g, '<br>');
+  // 去掉可能重複的換行
+  t = t.replace(/(?:<br>\s*){2,}/g, '<br>');
+  return t;
 }
 
 // 組訂單 payload（給 Make 訂單用）
@@ -185,31 +221,24 @@ function buildLineText(std){
     `商品明細：${std.orders||''}`,
     `實際運費：${std.shipping_fee||''}`,
     `總計金額：${std.total_amount||''}`,
-    `匯款後五碼：` // 留白讓使用者自行補上
+    `匯款後五碼：`
   ];
   return lines.join('\n');
 }
 
 // 嘗試開啟 LINE 並貼上文字（失敗時改導到加好友）
 async function openLineAndPaste(text){
-  // 先複製
   try{ await navigator.clipboard.writeText(text); }
   catch{
     const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
     ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
   }
-
-  // 提示已複製
   alert('已複製訂單明細。\n將為你開啟 LINE，請貼上並補上「匯款後五碼」。');
-
-  // 深連結到 LINE 對話輸入
   const deep = "line://msg/text/" + encodeURIComponent(text);
   try{
     const a=document.createElement('a'); a.href=deep; a.style.display='none'; document.body.appendChild(a); a.click();
     setTimeout(()=>{try{document.body.removeChild(a)}catch{}},1500);
   }catch{}
-
-  // 若未成功喚起，短暫延遲後導到官方帳號（加好友/對話）
   setTimeout(()=>{ window.location.href = LINE_ADD_FRIEND_URL; },800);
 }
 
@@ -228,11 +257,19 @@ async function postOrderToMake(payload){
   const std = readParamsStd();
   window.std = std;
 
-  // 表格
-  setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
-  setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
-  setCell('pickup_note',std.pickup_note); setCell('orders',std.orders);
-  setCell('shipping_fee',std.shipping_fee); setCell('total_amount',std.total_amount);
+  // 表格（一般欄位）
+  setCellText('order_time',std.order_time);
+  setCellText('order_id',std.order_id);
+  setCellText('email',std.email);
+  setCellText('store_name',std.store_name);
+  setCellText('delivery_method',std.delivery_method);
+  setCellText('pickup_note',std.pickup_note);
+  setCellText('shipping_fee',std.shipping_fee);
+  setCellText('total_amount',std.total_amount);
+
+  // 商品明細：自動分行（空格分隔也可以）
+  const ordersHTML = formatOrdersHTML(std.orders||'');
+  setCellHTML('orders', ordersHTML);
 
   // 訂單通知防呆（需要有效 email）
   const okEmail = isValidEmail(std.email);

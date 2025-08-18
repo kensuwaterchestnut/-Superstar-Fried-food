@@ -1,255 +1,127 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>叫貨明細</title>
-<style>
-:root{--border:#e5e7eb;--muted:#6b7280;--text:#111827;--ok:#059669;--bad:#b91c1c;--brand:#3b82f6;--bg:#f8fafc;--surface:#fff}
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","Helvetica Neue",Arial,sans-serif;
-  color:var(--text);background:var(--bg);
-  -webkit-tap-highlight-color:transparent;
-  padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)
-}
-.wrap{max-width:840px;margin:32px auto;padding:0 12px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:20px}
-h1{margin:0 0 14px;text-align:center;letter-spacing:.08em;font-weight:800;font-size:22px}
-.hint{color:var(--muted);margin:0 0 12px;font-size:14px}
-
-/* Mobile-first 表格：每列上下堆疊 */
-.table{width:100%;border-collapse:collapse;table-layout:auto;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)}
-.table tbody tr{display:block;border-bottom:1px solid var(--border);padding:10px 12px}
-.table tbody tr:last-child{border-bottom:0}
-.table th,.table td{display:block;padding:0;vertical-align:top;word-break:break-word}
-.table th{margin:0 0 6px;color:#111827;font-weight:700;font-size:13px}
-.table td{font-size:15px;line-height:1.6}
-.muted{color:var(--muted)}
-.prewrap{white-space:pre-wrap}
-
-/* 狀態與提示 */
-.footline{margin-top:12px;border-left:4px solid var(--brand);padding:10px 12px;color:var(--muted);border-radius:8px;background:#f8fbff;font-size:14px}
-.ok{color:var(--ok)}.bad{color:var(--bad)}
-.notice{margin-top:16px;background:#f0f9ff;border:1px solid #dbeafe;border-radius:12px;padding:14px}
-.warn{background:#fff7ed;border-color:#ffedd5}
-.small{font-size:14px}
-code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-radius:6px}
-
-/* 區塊 */
-.bank{margin-top:12px}
-.bank h3{margin:0 0 8px;font-size:18px}
-.row{display:flex;gap:10px;flex-direction:column}
-.kv{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f9fafb;border:1px solid var(--border);padding:12px;border-radius:12px}
-.kv b{font-size:14px}
-
-/* 按鈕 */
-.btn{cursor:pointer;border:1px solid var(--border);background:#fff;border-radius:10px;padding:10px 14px;font-size:15px;touch-action:manipulation;min-width:120px}
-.btn:active{transform:translateY(1px)}
-.btn-primary{background:#2563eb;border-color:#2563eb;color:#fff}
-.btn-line{background:#06c755;border-color:#06c755;color:#fff}
-.btn-ghost{background:#fff;border-style:dashed}
-
-/* 置頂固定的操作列（含背景霧面與細邊框） */
-.sticky-actions{
-  position:sticky; top:0; z-index:30;
-  margin:12px -10px 0; /* 拉出卡片左右內距，讓邊框貼齊 */
-  padding:10px;
-  background:#ffffffF2; backdrop-filter:blur(6px);
-  border:1px solid var(--border); border-left:0; border-right:0;
-  display:flex; gap:10px; flex-wrap:wrap;
-}
-.sticky-actions .btn{flex:1} /* 行動裝置每顆平均寬 */
-@media (min-width:640px){
-  .wrap{margin:48px auto;padding:0 16px}
-  .card{padding:28px}
-  h1{font-size:28px}
-  .table{table-layout:fixed}
-  .table tbody tr{display:table-row;padding:0}
-  .table th,.table td{display:table-cell;padding:14px 16px;border-bottom:1px solid var(--border)}
-  .table th{width:28%;background:#f9fafb}
-  .table tbody tr:last-child th,.table tbody tr:last-child td{border-bottom:0}
-  .row{flex-direction:row}
-  .sticky-actions{margin-left:-16px;margin-right:-16px}
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>叫貨明細</title>
+  <style>
+    :root{--border:#e5e7eb;--muted:#6b7280;--text:#111827;--ok:#059669;--bad:#b91c1c;--brand:#3b82f6;--bg:#f8fafc;--surface:#fff}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","Helvetica Neue",Arial,sans-serif;color:var(--text);background:var(--bg);-webkit-tap-highlight-color:transparent;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+    .wrap{max-width:840px;margin:32px auto;padding:0 12px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:20px}
+    h1{margin:0 0 14px;text-align:center;letter-spacing:.08em;font-weight:800;font-size:22px}
+    .hint{color:var(--muted);margin:0 0 12px;font-size:14px}
+    .table{width:100%;border-collapse:collapse;table-layout:auto;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)}
+    .table tbody tr{display:block;border-bottom:1px solid var(--border);padding:10px 12px}
+    .table tbody tr:last-child{border-bottom:0}
+    .table th,.table td{display:block;padding:0;vertical-align:top;word-break:break-word}
+    .table th{margin:0 0 6px;color:#111827;font-weight:700;font-size:13px}
+    .table td{font-size:15px;line-height:1.6}
+    .muted{color:var(--muted)}
+    .prewrap{white-space:pre-wrap}
+    .footline{margin-top:12px;border-left:4px solid var(--brand);padding:10px 12px;color:var(--muted);border-radius:8px;background:#f8fbff;font-size:14px}
+    .ok{color:var(--ok)}.bad{color:var(--bad)}
+    .notice{margin-top:16px;background:#f0f9ff;border:1px solid #dbeafe;border-radius:12px;padding:14px}
+    .warn{background:#fff7ed;border-color:#ffedd5}
+    .small{font-size:14px}
+    code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-radius:6px}
+    .bank{margin-top:12px}
+    .bank h3{margin:0 0 8px;font-size:18px}
+    .row{display:flex;gap:10px;flex-direction:column}
+    .kv{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f9fafb;border:1px solid var(--border);padding:12px;border-radius:12px}
+    .kv b{font-size:14px}
+    .btn{cursor:pointer;border:1px solid var(--border);background:#fff;border-radius:10px;padding:10px 14px;font-size:15px;touch-action:manipulation;min-width:120px}
+    .btn:active{transform:translateY(1px)}
+    .btn-primary{background:#2563eb;border-color:#2563eb;color:#fff}
+    .btn-line{background:#06c755;border-color:#06c755;color:#fff}
+    .btn-ghost{background:#fff;border-style:dashed}
+    .sticky-actions{position:sticky;top:0;z-index:30;margin:12px -10px 0;padding:10px;background:#ffffffF2;backdrop-filter:blur(6px);border:1px solid var(--border);border-left:0;border-right:0;display:flex;gap:10px;flex-wrap:wrap;}
+    .sticky-actions .btn{flex:1}
+    @media (min-width:640px){
+      .wrap{margin:48px auto;padding:0 16px}
+      .card{padding:28px}
+      h1{font-size:28px}
+      .table{table-layout:fixed}
+      .table tbody tr{display:table-row;padding:0}
+      .table th,.table td{display:table-cell;padding:14px 16px;border-bottom:1px solid var(--border)}
+      .table th{width:28%;background:#f9fafb}
+      .table tbody tr:last-child th,.table tbody tr:last-child td{border-bottom:0}
+      .row{flex-direction:row}
+      .sticky-actions{margin-left:-16px;margin-right:-16px}
+    }
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="card">
-    <h1>叫貨明細</h1>
-    <p class="hint">以下為本次訂單資訊：</p>
+  <div class="wrap">
+    <div class="card">
+      <h1>叫貨明細</h1>
+      <p class="hint">以下為本次訂單資訊：</p>
 
-    <!-- 匯款資訊（上方） -->
-    <div class="notice bank">
-      <h3>匯款資訊</h3>
-      <div class="row">
-        <div class="kv" aria-label="銀行代號"><b>銀行代號</b><span id="bank_code_txt">824（連線銀行）</span></div>
-        <div class="kv" aria-label="銀行帳號">
-          <b>銀行帳號</b><span id="bank_acct_txt" style="font-variant-numeric:tabular-nums">111013782313</span>
-          <button id="copyBtn" class="btn" type="button">複製帳號</button>
+      <div class="notice bank">
+        <h3>匯款資訊</h3>
+        <div class="row">
+          <div class="kv"><b>銀行代號</b><span id="bank_code_txt">824（連線銀行）</span></div>
+          <div class="kv"><b>銀行帳號</b><span id="bank_acct_txt" style="font-variant-numeric:tabular-nums">111013782313</span>
+            <button id="copyBtn" class="btn" type="button">複製帳號</button>
+          </div>
         </div>
+        <ul class="small" style="margin:10px 0 0 18px;line-height:1.7">
+          <li>下單後，<b>收到款項</b>進行出貨（約 <b>3–5 個工作天</b>）。</li>
+          <li>如需開立發票/收據，需加收<b>營業稅 5%</b>。</li>
+          <li>匯款後請提供<b>後五碼</b>傳送至總部官方帳號。</li>
+        </ul>
       </div>
-      <ul class="small" style="margin:10px 0 0 18px;line-height:1.7">
-        <li>下單後，<b>收到款項</b>進行出貨（約 <b>3–5 個工作天</b>）。</li>
-        <li>如需開立發票/收據，需加收<b>營業稅 5%</b>。</li>
-        <li>匯款後請提供<b>後五碼</b>傳送至總部官方帳號。</li>
-      </ul>
+
+      <div class="sticky-actions">
+        <a id="btnAddFriend" class="btn btn-line" href="#" target="_blank" rel="noopener">加入官方帳號</a>
+        <button id="btnSendLast5" class="btn btn-line" type="button">上傳後五碼（開啟 LINE）</button>
+      </div>
+
+      <div id="guardMsg" class="notice warn small" style="display:none;"></div>
+      <p id="resultLine" class="footline">正在檢查必要欄位…</p>
+
+      <table class="table">
+        <tbody>
+          <tr><th>訂單時間</th><td id="order_time" class="muted">（空）</td></tr>
+          <tr><th>訂單編號</th><td id="order_id" class="muted">（空）</td></tr>
+          <tr><th>信箱</th><td id="email" class="muted">（空）</td></tr>
+          <tr><th>分店名稱</th><td id="store_name" class="muted">（空）</td></tr>
+          <tr><th>寄貨方式</th><td id="delivery_method" class="muted">（空）</td></tr>
+          <tr><th>取貨備註</th><td id="pickup_note" class="muted">（空）</td></tr>
+          <tr><th>商品明細</th><td id="orders" class="muted prewrap">（空）</td></tr>
+          <tr><th>實際運費</th><td id="shipping_fee" class="muted">（空）</td></tr>
+          <tr><th>總計金額</th><td id="total_amount" class="muted">（空）</td></tr>
+        </tbody>
+      </table>
     </div>
-
-    <!-- 置頂固定操作列 -->
-    <div class="sticky-actions">
-      <a id="btnAddFriend" class="btn btn-line" href="#" target="_blank" rel="noopener">加入官方帳號</a>
-      <button id="btnBindLiff" class="btn btn-primary" type="button">一鍵綁定（自動接收訂單）</button>
-      <button id="btnSendLast5" class="btn btn-line" type="button">上傳後五碼（開啟 LINE）</button>
-      <button id="btnTestPush" class="btn btn-ghost" type="button">測試推播（已綁定者）</button>
-    </div>
-
-    <div id="guardMsg" class="notice warn small" style="display:none;"></div>
-    <p id="resultLine" class="footline">正在檢查必要欄位…</p>
-
-    <!-- 訂單明細表格 -->
-    <table class="table">
-      <tbody>
-        <tr><th>訂單時間</th><td id="order_time"     class="muted">（空）</td></tr>
-        <tr><th>訂單編號</th><td id="order_id"       class="muted">（空）</td></tr>
-        <tr><th>信箱</th><td     id="email"          class="muted">（空）</td></tr>
-        <tr><th>分店名稱</th><td id="store_name"     class="muted">（空）</td></tr>
-        <tr><th>寄貨方式</th><td id="delivery_method"class="muted">（空）</td></tr>
-        <tr><th>取貨備註</th><td id="pickup_note"    class="muted">（空）</td></tr>
-        <tr><th>商品明細</th><td id="orders"         class="muted prewrap">（空）</td></tr>
-        <tr><th>實際運費</th><td id="shipping_fee"   class="muted">（空）</td></tr>
-        <tr><th>總計金額</th><td id="total_amount"   class="muted">（空）</td></tr>
-      </tbody>
-    </table>
   </div>
-</div>
 
-<!-- 已移除：手機底部快速操作列 -->
-
-<!-- LIFF SDK（綁定用） -->
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
-// ====== 你只需要改這裡 ======
-const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf"; // 訂單 Webhook（已串）
-const MAKE_BIND_URL   = "https://hook.eu2.make.com/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";   // 綁定 Webhook（Make 的 Scenario A）
-const MAKE_TEST_PUSH  = "https://hook.eu2.make.com/yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy";   // （可選）測試推播 Webhook
-const LIFF_ID         = "YOUR_LIFF_ID";                                                 // LINE Developers 建立 LIFF 後取得
-const LINE_ADD_FRIEND_URL = "https://lin.ee/RTMwUYu";                                   // 你的加好友短連結
-// =================================
-
-// Glide 英文鍵 → 內部標準鍵
+const LINE_ADD_FRIEND_URL = "https://lin.ee/RTMwUYu";
 const enToStd = {
   order_time:'order_time', order_id:'order_id', email:'email',
   store_name:'store_name', delivery_method:'delivery_method',
   pickup_note:'pickup_note', order_details:'orders',
   shipping:'shipping_fee', total:'total_amount'
 };
-
-// 中文欄位名 → 內部標準鍵（顛倒格式）
 const zhToStd = {
   "訂單時間":"order_time","訂單編號":"order_id","信箱":"email","分店名稱":"store_name",
   "寄貨方式":"delivery_method","取貨備註":"pickup_note","商品明細":"orders",
   "實際運費":"shipping_fee","總計金額":"total_amount"
 };
-
-// 工具
 function decodeQS(s){ try{ return decodeURIComponent(String(s||'').replace(/\+/g,' ')); }catch{ return String(s||''); } }
 function setCell(id,val){ const el=document.getElementById(id); const v=(val==null||val==='')?'（空）':String(val); el.textContent=v; el.classList.toggle('muted',v==='（空）'); }
 function isValidEmail(s){ return !!(s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())); }
 function showGuard(html){ const box=document.getElementById('guardMsg'); box.style.display='block'; box.innerHTML=html; }
 function hideGuard(){ const box=document.getElementById('guardMsg'); box.style.display='none'; box.innerHTML=''; }
-
-// 解析網址（支援英文鍵與顛倒格式）
 function readParamsStd(){
   const std={}, usp=new URLSearchParams(location.search.startsWith('?')?location.search.slice(1):location.search);
   usp.forEach((v,k)=>{ const key=decodeQS(k).trim(), val=decodeQS(v).trim(); if(key in enToStd) std[enToStd[key]]=val; });
   usp.forEach((v,k)=>{ const maybeValue=decodeQS(k).trim(), maybeLabel=decodeQS(v).trim(); const stdKey=zhToStd[maybeLabel]; if(stdKey && (std[stdKey]==null||std[stdKey]==='')) std[stdKey]=maybeValue; });
   return std;
 }
-
-// 組訂單 payload（給 Make 訂單用）
-function buildOrderPayload(std){
-  return {
-    '訂單時間':std.order_time||'','訂單編號':std.order_id||'','信箱':std.email||'','分店名稱':std.store_name||'',
-    '寄貨方式':std.delivery_method||'','取貨備註':std.pickup_note||'','商品明細':std.orders||'',
-    '實際運費':std.shipping_fee||'','總計金額':std.total_amount||'',
-    order_time:std.order_time||'', order_id:std.order_id||'', email:std.email||'', store_name:std.store_name||'',
-    delivery_method:std.delivery_method||'', pickup_note:std.pickup_note||'', orders:std.orders||'',
-    shipping_fee:std.shipping_fee||'', total_amount:std.total_amount||'',
-    _source_url:location.href
-  };
-}
-
-// 背景送 Make（訂單）
-async function postOrderToMake(payload){
-  try{
-    await fetch(MAKE_WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({__emailjs__:payload})});
-    document.getElementById('resultLine').innerHTML='✅ <span class="ok">成功</span>寄通知給總部';
-  }catch(_){
-    document.getElementById('resultLine').innerHTML='❌ <span class="bad">失敗</span>寄通知給總部';
-  }
-}
-
-// 綁定（直送 Make）
-async function bindWithLIFF(std){
-  try{
-    // 加好友按鈕設定
-    document.getElementById('btnAddFriend').href = LINE_ADD_FRIEND_URL;
-
-    // 初始化 LIFF
-    await liff.init({ liffId: LIFF_ID });
-
-    // 檢查是否為好友（需在 LIFF 設定開啟 friendship status）
-    let isFriend = true;
-    try{
-      const fs = await liff.getFriendship();
-      if (typeof fs?.friendFlag === 'boolean') isFriend = fs.friendFlag;
-    }catch{}
-
-    if (!isFriend){
-      const go = confirm('尚未加入官方帳號，是否前往加入？');
-      if (go){ window.location.href = LINE_ADD_FRIEND_URL; }
-      return;
-    }
-
-    // 需要登入才能取 userId
-    if (!liff.isLoggedIn()) liff.login();
-
-    const prof = await liff.getProfile(); // { userId, displayName, pictureUrl }
-    // 以 email 優先當 key，沒有就用 store_name，仍沒有就請他輸入
-    let key = (std.email && std.email.trim()) || (std.store_name && std.store_name.trim()) || '';
-    if (!key){
-      key = prompt('請輸入用來綁定的識別（建議使用 Email 或 分店名稱）','') || '';
-      key = key.trim();
-      if (!key){ alert('未提供識別，已取消綁定。'); return; }
-    }
-
-    const body = {
-      key,
-      userId: prof.userId,
-      displayName: prof.displayName || '',
-      source: 'relay-page',
-      source_url: location.href,
-      meta: { email: std.email || '', store_name: std.store_name || '' }
-    };
-
-    const resp = await fetch(MAKE_BIND_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    if (!resp.ok){ throw new Error('bind webhook error'); }
-
-    alert('綁定成功！之後會自動把訂單推播到你的 LINE。');
-
-  }catch(err){
-    console.error(err);
-    alert('綁定失敗，請稍後再試或改用「加入官方帳號」後，在 LINE 對話輸入：綁定 你的Email或分店名稱');
-  }
-}
-
-// 上傳後五碼 → 複製訊息並開 LINE
-const LINE_MSG_DEEPLINK_PREFIX = "line://msg/text/";
-const LINE_ADD_FRIEND_URL_FULL = LINE_ADD_FRIEND_URL;
 function buildLineMessage(std,last5){
   const parts=['【匯款後五碼回報】'];
   if(std.order_id) parts.push('訂單編號：'+std.order_id);
@@ -263,12 +135,12 @@ async function openLineAndPaste(text){
     const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
     ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
   }
-  const deep = LINE_MSG_DEEPLINK_PREFIX + encodeURIComponent(text);
+  const deep = "line://msg/text/" + encodeURIComponent(text);
   try{
     const a=document.createElement('a'); a.href=deep; a.style.display='none'; document.body.appendChild(a); a.click();
     setTimeout(()=>{try{document.body.removeChild(a)}catch{}},1500);
   }catch{}
-  setTimeout(()=>{ window.location.href = LINE_ADD_FRIEND_URL_FULL; },800);
+  setTimeout(()=>{ window.location.href = LINE_ADD_FRIEND_URL; },800);
 }
 async function handleSendLast5(std){
   let last5 = prompt('請輸入匯款後五碼：',''); if(last5==null) return;
@@ -277,51 +149,27 @@ async function handleSendLast5(std){
   const msg = buildLineMessage(std,last5); await openLineAndPaste(msg);
 }
 
-// 啟動
 (function init(){
   const std = readParamsStd();
-  window.std = std;
-
-  // 表格
   setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
   setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
   setCell('pickup_note',std.pickup_note); setCell('orders',std.orders);
   setCell('shipping_fee',std.shipping_fee); setCell('total_amount',std.total_amount);
-
-  // 訂單通知防呆（需要有效 email）
-  const okEmail = isValidEmail(std.email);
   document.getElementById('btnAddFriend').href = LINE_ADD_FRIEND_URL;
+  const okEmail = isValidEmail(std.email);
   if(!okEmail){
-    showGuard('未檢測到有效的 <b>信箱</b>，本次不會通知總部（避免寄出空白/錯誤資料）。<br>請確認 Glide 帶入參數包含 <code>email</code> 或顛倒格式中含「信箱」。');
+    showGuard('未檢測到有效的 <b>信箱</b>，無法通知總部。');
     document.getElementById('resultLine').innerHTML='⛔ 已停止通知：缺少有效信箱。';
   }else{
     hideGuard();
-    document.getElementById('resultLine').innerHTML='已檢核通過，正在通知總部…';
-    const payload = buildOrderPayload(std);
-    postOrderToMake(payload);
+    document.getElementById('resultLine').innerHTML='✅ 可回報匯款後五碼';
   }
 
-  // 事件
-  document.getElementById('btnBindLiff')?.addEventListener('click', ()=> bindWithLIFF(std));
-
-  const copyBtn = document.getElementById('copyBtn');
-  copyBtn?.addEventListener('click', async (e)=>{
+  document.getElementById('btnSendLast5')?.addEventListener('click', ()=> handleSendLast5(std));
+  document.getElementById('copyBtn')?.addEventListener('click', async (e)=>{
     const btn = e.currentTarget;
     const acct=document.getElementById('bank_acct_txt').textContent.trim();
     try{ await navigator.clipboard.writeText(acct); btn.textContent='已複製！'; setTimeout(()=> btn.textContent='複製帳號',1200); }catch{}
-  });
-
-  document.getElementById('btnSendLast5')?.addEventListener('click', ()=> handleSendLast5(std));
-
-  // 已移除：手機底部列相關事件
-  // （可選）測試推播：呼叫你的 Make 測試端點
-  document.getElementById('btnTestPush')?.addEventListener('click', async ()=>{
-    if(!MAKE_TEST_PUSH || MAKE_TEST_PUSH.includes('yyyyy')){ alert('尚未設定測試推播端點'); return; }
-    const res = await fetch(MAKE_TEST_PUSH,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ key: std.email || std.store_name || '', order_id: std.order_id||'', store_name: std.store_name||'', total_amount: std.total_amount||'' })
-    });
-    if(res.ok) alert('已送出測試推播（若已綁定會收到）'); else alert('測試推播失敗，請檢查端點');
   });
 })();
 </script>

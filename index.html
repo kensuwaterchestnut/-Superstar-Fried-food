@@ -61,7 +61,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 }
 .sticky-actions .btn{flex:1}
 
-/* 手機：整體置中（但清單內容維持左對齊更好讀） */
+/* 手機：整體置中（清單內容維持左對齊） */
 @media (max-width: 480px){
   .card{margin-left:auto;margin-right:auto;}
   .table th,.table td{ text-align:center; }
@@ -88,10 +88,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
   list-style: decimal;
   list-style-position: outside;
 }
-.orders-list li{
-  margin: 3px 0;
-  line-height: 1.6;
-}
+.orders-list li{ margin: 3px 0; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -156,7 +153,6 @@ const enToStd = {
   pickup_note:'pickup_note', order_details:'orders',
   shipping:'shipping_fee', total:'total_amount'
 };
-
 // 中文欄位名 → 內部標準鍵（顛倒格式）
 const zhToStd = {
   "訂單時間":"order_time","訂單編號":"order_id","信箱":"email","分店名稱":"store_name",
@@ -183,31 +179,38 @@ function readParamsStd(){
   return std;
 }
 
-// ===== 商品明細：解析＋格式化（數字清單、標籤在左） =====
+// ===== 商品明細：解析（支援 x / X / ×；並清掉尾端多餘的 x/×）=====
 function parseOrders(raw){
-  const t = String(raw||'').replace(/\s+/g,' ').trim();
+  const t = String(raw||'')
+    .replace(/\s+/g,' ')       // 壓縮空白
+    .replace(/\s*[xX×]\s*$/,'')// 去掉結尾多餘分隔
+    .trim();
+
   const items = [];
-  // 例：品名 × 數量 (整件) / （單品項）  — 括號可有可無
-  const re = /([^×\n]+?)\s*×\s*(\d+)(?:\s*[（(]\s*([^（）)]+?)\s*[）)])?/g;
+  // 例：品名 x 3 (整件)  或  品名 × 1 （單品項），括號可有可無
+  const re = /(.+?)\s*[xX×]\s*(\d+)(?:\s*[（(]\s*([^（）)]+?)\s*[）)])?/g;
   let m;
   while ((m = re.exec(t))) {
-    items.push({ name:m[1].trim(), qty:m[2].trim(), tag:(m[3]||'').trim() });
+    const name = m[1].trim();
+    const qty  = m[2].trim();
+    const tag  = (m[3]||'').trim();
+    items.push({ name, qty, tag });
   }
-  if (items.length===0 && t) items.push({name:t, qty:'', tag:''});
+  if (items.length===0 && t) items.push({ name:t, qty:'', tag:'' });
   return items;
 }
 
-// 畫面用（HTML）
+// 畫面用（HTML）：數字清單、標籤在左
 function formatOrdersHTML(raw){
   const items = parseOrders(raw);
-  const lis = items.map((it,i)=>{
+  const lis = items.map(it=>{
     const tag = it.tag ? `（${escapeHTML(it.tag)}）` : '';
     return `<li>${tag}${escapeHTML(it.name)} × ${escapeHTML(it.qty)}</li>`;
   }).join('');
   return `<ol class="orders-list">${lis}</ol>`;
 }
 
-// 複製到 LINE 用（純文字）
+// 複製到 LINE 用（純文字）：數字條列
 function formatOrdersText(raw){
   const items = parseOrders(raw);
   return items.map((it,i)=>{
@@ -216,7 +219,7 @@ function formatOrdersText(raw){
   }).join('\n');
 }
 
-// 建立要貼到 LINE 的完整明細文字（保留段落）
+// 建立 LINE 文字（保留段落）
 function buildLineText(std){
   const ordersBlock = formatOrdersText(std.orders||'');
   const linesTop = [
@@ -293,7 +296,7 @@ async function openLineAndPaste(text){
   setCellText('shipping_fee',std.shipping_fee);
   setCellText('total_amount',std.total_amount);
 
-  // 商品明細：數字清單（置左顯示標籤）
+  // 商品明細：數字清單（標籤在左）
   setCellHTML('orders', formatOrdersHTML(std.orders||''));
 
   // 通知防呆 + 背景送 Make
@@ -315,7 +318,7 @@ async function openLineAndPaste(text){
 
   // 事件：上傳後五碼（開啟 LINE）
   document.getElementById('btnSendLast5')?.addEventListener('click', ()=>{
-    const text = buildLineText(std);
+    const text = buildLineText(std);   // ← 已是數字條列＋段落
     openLineAndPaste(text);
   });
 })();

@@ -61,6 +61,12 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 }
 .sticky-actions .btn{flex:1}
 
+/* 手機置中（清單內容維持左對齊較好讀） */
+@media (max-width: 480px){
+  .table th,.table td{ text-align:center; }
+  .table td .orders-list{ display:inline-block; text-align:left; }
+}
+
 @media (min-width:640px){
   .wrap{margin:48px auto;padding:0 16px}
   .card{padding:28px}
@@ -74,7 +80,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
   .sticky-actions{margin-left:-16px;margin-right:-16px}
 }
 
-/* 商 品 明 細：數字清單（畫面用） */
+/* 商品明細：數字清單（畫面） */
 .orders-list{margin:0;padding-left:1.5em;list-style:decimal;list-style-position:outside}
 .orders-list li{margin:3px 0;line-height:1.6}
 </style>
@@ -102,7 +108,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
       </ul>
     </div>
 
-    <!-- 置頂固定操作列：只留「上傳後五碼（開啟 LINE）」 -->
+    <!-- 置頂固定操作列 -->
     <div class="sticky-actions">
       <button id="btnSendLast5" class="btn btn-primary" type="button">上傳後五碼（開啟 LINE）</button>
     </div>
@@ -128,11 +134,9 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 </div>
 
 <script>
-// ====== 你只需要改這裡（Make 設定）======
+// ====== Make / LINE 設定 ======
 const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf";
-// ====== LINE 官方帳號連結（加好友 / 後備跳轉）======
 const LINE_ADD_FRIEND_URL = "https://lin.ee/RTMwUYu";
-// ===============================================
 
 // 英文鍵 → 內部標準鍵
 const enToStd = {
@@ -148,7 +152,7 @@ const zhToStd = {
   "實際運費":"shipping_fee","總計金額":"total_amount"
 };
 
-// ------ 工具（保留你原本，另外新增更強的解析） ------
+// 工具
 function decodeQS(s){ try{ return decodeURIComponent(String(s||'').replace(/\+/g,' ')); }catch{ return String(s||''); } }
 function setCell(id,val){ const el=document.getElementById(id); const v=(val==null||val==='')?'（空）':String(val); el.textContent=v; el.classList.toggle('muted',v==='（空）'); }
 function isValidEmail(s){ return !!(s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())); }
@@ -157,7 +161,7 @@ function hideGuard(){ const box=document.getElementById('guardMsg'); box.style.d
 function setCellHTML(id, html){ const el=document.getElementById(id); const ok = html && String(html).trim()!==''; if(ok){ el.innerHTML=html; el.classList.remove('muted'); } else { el.textContent='（空）'; el.classList.add('muted'); } }
 function escapeHTML(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-// 兼容取得 query（支援 ? 與 #；也容忍前面多了 ?&）
+// 取得 query（支援 ? 也支援 #；容忍前面多了 ?&）
 function getQueryString(){
   let raw = '';
   if (location.search && location.search.startsWith('?')) raw = location.search.slice(1);
@@ -168,16 +172,12 @@ function getQueryString(){
   }
   return String(raw||'').replace(/^\?*&+/, '').trim();
 }
-// 安全解碼（容忍未編碼空白與全形字）
 function safeDecode(str){
   try { return decodeURIComponent(String(str||'').replace(/\+/g,' ')); }
   catch { return String(str||'').replace(/\+/g,' '); }
 }
 
-// ★ 強化版解析：同時支援
-//   a) 英文鍵=值 （order_time=2025…）
-//   b) 值=中文鍵（2025…=訂單時間）← 你的實際情況
-//   c) 中文鍵=值（訂單時間=2025…）
+// ★ 解析網址（英文鍵=值、中文鍵=值、值=中文鍵 都支援）
 function readParamsStd(){
   const std = {};
   const raw = getQueryString();
@@ -193,32 +193,30 @@ function readParamsStd(){
     const R = safeDecode(right).trim();
     if (!L && !R) continue;
 
-    if (L in enToStd && R !== ''){                       // 英文鍵=值
-      const key=enToStd[L]; if (std[key]==null||std[key]==='') std[key]=R; continue;
-    }
-    if (L in zhToStd && R !== ''){                        // 中文鍵=值
-      const key=zhToStd[L]; if (std[key]==null||std[key]==='') std[key]=R; continue;
-    }
-    if (R in zhToStd && L !== ''){                        // 值=中文鍵（顛倒）
-      const key=zhToStd[R]; if (std[key]==null||std[key]==='') std[key]=L; continue;
-    }
+    if (L in enToStd && R !== ''){ const k=enToStd[L]; if (std[k]==null||std[k]==='') std[k]=R; continue; } // 英文鍵=值
+    if (L in zhToStd && R !== ''){ const k=zhToStd[L]; if (std[k]==null||std[k]==='') std[k]=R; continue; } // 中文鍵=值
+    if (R in zhToStd && L !== ''){ const k=zhToStd[R]; if (std[k]==null||std[k]==='') std[k]=L; continue; } // 值=中文鍵（顛倒）
   }
   return std;
 }
 
-/* ===== 商品明細解析（支援 x/X/×；標籤可在前或後；避免重複） ===== */
+/* ===== 商品明細解析（JS 版合法正規式） =====
+   支援：x / X / ×；標籤可在前或後；避免重複
+*/
 function parseOrders(raw){
   let t = String(raw||'').replace(/\s+/g,' ').replace(/\s*[xX×]\s*$/,'').trim();
-  const items=[], re=/(?:[（(]\s*([^（）)]+?)\s*[）)])?\s*(.+?)\s*[xX×]\s*(\d+)(?:\s*[（(]\s*([^（）)]+?)\s*[）)])?/gx;
+  const items = [];
+  const re = /(?:[（(]\s*([^（）)]+?)\s*[）)])?\s*(.+?)\s*[xX×]\s*(\d+)(?:\s*[（(]\s*([^（）)]+?)\s*[）)])?/g;
+
   let m;
-  while((m=re.exec(t))){
+  while ((m = re.exec(t))){
     let lead=(m[1]||'').trim(), name=(m[2]||'').trim(), qty=(m[3]||'').trim(), trail=(m[4]||'').trim();
-    name=name.replace(/^\s*[（(]\s*([^（）)]+?)\s*[）)]\s*/,(_,tg)=>{ if(!lead&&!trail) lead=(tg||'').trim(); return ''; }).trim();
+    name = name.replace(/^\s*[（(]\s*([^（）)]+?)\s*[）)]\s*/, (_, tg)=>{ if(!lead && !trail) lead=(tg||'').trim(); return ''; }).trim();
     const tag = lead || trail || '';
-    name=name.replace(/\s*[xX×]\s*$/,'');
-    items.push({name,qty,tag});
+    name = name.replace(/\s*[xX×]\s*$/,'');
+    items.push({name, qty, tag});
   }
-  if(items.length===0 && t) items.push({name:t,qty:'',tag:''});
+  if (items.length===0 && t) items.push({name:t, qty:'', tag:''});
   return items;
 }
 function formatOrdersHTML(raw){
@@ -248,7 +246,7 @@ function buildOrderPayload(std){
   };
 }
 
-// 貼到 LINE（商品明細→多行數字條列）
+// LINE 文字（商品明細多行）
 function buildLineText(std){
   const lines = [
     '【匯款後五碼回報】',
@@ -271,7 +269,10 @@ function buildLineText(std){
 // 開啟 LINE 並貼上
 async function openLineAndPaste(text){
   try{ await navigator.clipboard.writeText(text); }
-  catch{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+  catch{
+    const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove();
+  }
   alert('已複製訂單明細。\n將為你開啟 LINE，請貼上並補上「匯款後五碼」。');
   const deep = "line://msg/text/" + encodeURIComponent(text);
   try{ const a=document.createElement('a'); a.href=deep; a.style.display='none'; document.body.appendChild(a); a.click(); setTimeout(()=>a.remove(),1500);}catch{}
@@ -283,20 +284,26 @@ async function postOrderToMake(payload){
   try{
     await fetch(MAKE_WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({__emailjs__:payload})});
     document.getElementById('resultLine').innerHTML='✅ <span class="ok">成功</span>寄通知給總部';
-  }catch{ document.getElementById('resultLine').innerHTML='❌ <span class="bad">失敗</span>寄通知給總部'; }
+  }catch{
+    document.getElementById('resultLine').innerHTML='❌ <span class="bad">失敗</span>寄通知給總部';
+  }
 }
 
 // 啟動
 (function init(){
-  const std = readParamsStd();  // ← 這版能吃你提供的網址模板最終產生的顛倒格式
+  const std = readParamsStd();
   window.std = std;
 
   // 表格
-  setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
-  setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
+  setCell('order_time',std.order_time);
+  setCell('order_id',std.order_id);
+  setCell('email',std.email);
+  setCell('store_name',std.store_name);
+  setCell('delivery_method',std.delivery_method);
   setCell('pickup_note',std.pickup_note);
-  setCellHTML('orders', formatOrdersHTML(std.orders||''));  // 商品明細→清單
-  setCell('shipping_fee',std.shipping_fee); setCell('total_amount',std.total_amount);
+  setCellHTML('orders', formatOrdersHTML(std.orders||'')); // 商品明細：清單化
+  setCell('shipping_fee',std.shipping_fee);
+  setCell('total_amount',std.total_amount);
 
   // 通知總部（需要有效 Email）
   if(!isValidEmail(std.email)){
@@ -313,7 +320,9 @@ async function postOrderToMake(payload){
     const btn=e.currentTarget; const acct=document.getElementById('bank_acct_txt').textContent.trim();
     try{ await navigator.clipboard.writeText(acct); btn.textContent='已複製！'; setTimeout(()=> btn.textContent='複製帳號',1200);}catch{}
   });
-  document.getElementById('btnSendLast5')?.addEventListener('click', ()=>{ openLineAndPaste(buildLineText(std)); });
+  document.getElementById('btnSendLast5')?.addEventListener('click', ()=>{
+    openLineAndPaste(buildLineText(std));
+  });
 })();
 </script>
 </body>

@@ -28,7 +28,7 @@ h1{margin:0 0 14px;text-align:center;letter-spacing:.08em;font-weight:800;font-s
 .table th{margin:0 0 6px;color:#111827;font-weight:700;font-size:13px}
 .table td{font-size:15px;line-height:1.6}
 .muted{color:var(--muted)}
-.prewrap{white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;}
+.prewrap{white-space:pre-wrap}
 
 /* 狀態與提示 */
 .footline{margin-top:12px;border-left:4px solid var(--brand);padding:10px 12px;color:var(--muted);border-radius:8px;background:#f8fbff;font-size:14px}
@@ -61,7 +61,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 }
 .sticky-actions .btn{flex:1}
 
-/* 手機：整體置中（清單內容維持左對齊更好讀） */
+/* 手機：整體置中（但清單內容維持左對齊，較好讀） */
 @media (max-width: 480px){
   .card{margin-left:auto;margin-right:auto;}
   .table th,.table td{ text-align:center; }
@@ -88,10 +88,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
   list-style: decimal;
   list-style-position: outside;
 }
-.orders-list li{
-  margin: 3px 0;
-  line-height: 1.6;
-}
+.orders-list li{ margin: 3px 0; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -117,7 +114,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
       </ul>
     </div>
 
-    <!-- 置頂固定操作列 -->
+    <!-- 置頂固定操作列：只留「上傳後五碼（開啟 LINE）」 -->
     <div class="sticky-actions">
       <button id="btnSendLast5" class="btn btn-primary" type="button">上傳後五碼（開啟 LINE）</button>
     </div>
@@ -145,6 +142,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 <script>
 // ====== 你只需要改這裡（Make 設定）======
 const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf";
+// ====== LINE 官方帳號連結（加好友 / 後備跳轉）======
 const LINE_ADD_FRIEND_URL = "https://lin.ee/RTMwUYu";
 // ===============================================
 
@@ -155,54 +153,35 @@ const enToStd = {
   pickup_note:'pickup_note', order_details:'orders',
   shipping:'shipping_fee', total:'total_amount'
 };
-// 中文欄位名 → 內部標準鍵（顛倒格式用到）
+
+// 中文欄位名 → 內部標準鍵（顛倒格式）
 const zhToStd = {
   "訂單時間":"order_time","訂單編號":"order_id","信箱":"email","分店名稱":"store_name",
   "寄貨方式":"delivery_method","取貨備註":"pickup_note","商品明細":"orders",
   "實際運費":"shipping_fee","總計金額":"total_amount"
 };
 
-// —— 工具 —— //
+// 工具（保持原本）——
 function decodeQS(s){ try{ return decodeURIComponent(String(s||'').replace(/\+/g,' ')); }catch{ return String(s||''); } }
-function setCellText(id,val){ const el=document.getElementById(id); const v=(val==null||val==='')?'（空）':String(val); el.textContent=v; el.classList.toggle('muted',v==='（空）'); }
-function setCellHTML(id,html){ const el=document.getElementById(id); const ok = html && String(html).trim()!==''; el.innerHTML = ok ? html : '（空）'; el.classList.toggle('muted',!ok); }
+function setCell(id,val){ const el=document.getElementById(id); const v=(val==null||val==='')?'（空）':String(val); el.textContent=v; el.classList.toggle('muted',v==='（空）'); }
 function isValidEmail(s){ return !!(s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())); }
 function showGuard(html){ const box=document.getElementById('guardMsg'); box.style.display='block'; box.innerHTML=html; }
 function hideGuard(){ const box=document.getElementById('guardMsg'); box.style.display='none'; box.innerHTML=''; }
-function escapeHTML(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+// 新增：安全塞入 HTML 用
+function setCellHTML(id, html){ const el=document.getElementById(id); const ok=html && String(html).trim()!==''; if(ok){ el.innerHTML=html; el.classList.remove('muted'); } else { el.textContent='（空）'; el.classList.add('muted'); } }
 
-// 解析網址（支援：英文鍵、中文鍵=值、顛倒格式 值=中文鍵）
+// 解析網址（支援英文鍵與「顛倒格式」；※保持你最初的寫法，不動！）
 function readParamsStd(){
   const std={}, usp=new URLSearchParams(location.search.startsWith('?')?location.search.slice(1):location.search);
-
-  // 1) 英文鍵
-  usp.forEach((v,k)=>{
-    const key=decodeQS(k).trim(), val=decodeQS(v).trim();
-    if(key in enToStd && val!=='') std[enToStd[key]]=val;
-  });
-
-  // 2) 正常中文鍵=值
-  usp.forEach((v,k)=>{
-    const key=decodeQS(k).trim(), val=decodeQS(v).trim();
-    if(key in zhToStd && (std[zhToStd[key]]==null||std[zhToStd[key]]==='')) std[zhToStd[key]]=val;
-  });
-
-  // 3) 顛倒格式（值=中文鍵）
-  usp.forEach((v,k)=>{
-    const maybeValue=decodeQS(k).trim(), maybeLabel=decodeQS(v).trim();
-    const stdKey=zhToStd[maybeLabel];
-    if(stdKey && (std[stdKey]==null||std[stdKey]==='')) std[stdKey]=maybeValue;
-  });
-
+  usp.forEach((v,k)=>{ const key=decodeQS(k).trim(), val=decodeQS(v).trim(); if(key in enToStd) std[enToStd[key]]=val; });
+  usp.forEach((v,k)=>{ const maybeValue=decodeQS(k).trim(), maybeLabel=decodeQS(v).trim(); const stdKey=zhToStd[maybeLabel]; if(stdKey && (std[stdKey]==null||std[stdKey]==='')) std[stdKey]=maybeValue; });
   return std;
 }
 
-/* ===== 商品明細解析 2.0：支援「前置或後置標籤」，並防重複 =====
-   三種寫法皆可：
-   1) （整件）品名 x 3
-   2) 品名 x 3 （整件）
-   3) 品名 x 3
-   分隔符支援 x / X / × ；括號支援全形（ ）與半形( )
+/* ===== 商品明細解析（最小新增） =====
+   1) 支援「（整件）品名 x 3」或「品名 x 3 （單品項）」或「品名 x 3」
+   2) 分隔符支援 x / X / ×
+   3) 只顯示一個標籤（避免重複）
 */
 function parseOrders(raw){
   let t = String(raw||'')
@@ -212,7 +191,7 @@ function parseOrders(raw){
 
   const items = [];
   const re = /(?:[（(]\s*([^（）)]+?)\s*[）)])?\s*   # 前置標籤(可無)
-              (.+?)\s*                              # 品名(懶惰)
+              (.+?)\s*                              # 品名
               [xX×]\s*(\d+)                         # 數量
               (?:\s*[（(]\s*([^（）)]+?)\s*[）)])?   # 後置標籤(可無)
              /gx;
@@ -224,14 +203,14 @@ function parseOrders(raw){
     let qty      = (m[3]||'').trim();
     let trailTag = (m[4]||'').trim();
 
-    // 若品名本身以（標籤）開頭，抽出成標籤（避免重複）
-    name = name.replace(/^\s*[（(]\s*([^（）)]+?)\s*[）)]\s*/, (_, tagInName)=>{
-      if (!leadTag && !trailTag) leadTag = (tagInName||'').trim();
+    // 若品名本身以（標籤）開頭，抽出當標籤（避免重複）
+    name = name.replace(/^\s*[（(]\s*([^（）)]+?)\s*[）)]\s*/, (_, tg)=>{
+      if (!leadTag && !trailTag) leadTag = (tg||'').trim();
       return '';
     }).trim();
 
     const tag = leadTag || trailTag || '';
-    name = name.replace(/\s*[xX×]\s*$/,''); // 清除尾端殘留分隔
+    name = name.replace(/\s*[xX×]\s*$/,'');
     items.push({ name, qty, tag });
   }
 
@@ -239,17 +218,18 @@ function parseOrders(raw){
   return items;
 }
 
-// 畫面用（HTML）：數字清單，標籤在左
+// 畫面：輸出數字清單（標籤在左）
 function formatOrdersHTML(raw){
   const items = parseOrders(raw);
+  if (!items.length) return '';
   const lis = items.map(it=>{
-    const tag = it.tag ? `（${escapeHTML(it.tag)}）` : '';
-    return `<li>${tag}${escapeHTML(it.name)} × ${escapeHTML(it.qty)}</li>`;
+    const tag = it.tag ? `（${it.tag}）` : '';
+    return `<li>${tag}${it.name} × ${it.qty}</li>`;
   }).join('');
   return `<ol class="orders-list">${lis}</ol>`;
 }
 
-// 複製到 LINE 用（純文字）：數字條列
+// 複製到 LINE：輸出多行數字條列
 function formatOrdersText(raw){
   const items = parseOrders(raw);
   return items.map((it,i)=>{
@@ -271,10 +251,9 @@ function buildOrderPayload(std){
   };
 }
 
-// 建立 LINE 文字（保留段落）
+// 建立要貼到 LINE 的完整明細文字（保持你原本格式，只把商品明細改成多行數字條列）
 function buildLineText(std){
-  const ordersBlock = formatOrdersText(std.orders||'');
-  const linesTop = [
+  const lines = [
     '【匯款後五碼回報】',
     `訂單時間：${std.order_time||''}`,
     `訂單編號：${std.order_id||''}`,
@@ -283,25 +262,13 @@ function buildLineText(std){
     `寄貨方式：${std.delivery_method||''}`,
     `取貨備註：${std.pickup_note||''}`,
     '商品明細：',
-    ordersBlock
-  ];
-  const linesBottom = [
+    formatOrdersText(std.orders||''),   // ← 改為多行數字條列
     '',
     `實際運費：${std.shipping_fee||''}`,
     `總計金額：${std.total_amount||''}`,
-    '匯款後五碼：'
+    `匯款後五碼：`
   ];
-  return [...linesTop, ...linesBottom].join('\n');
-}
-
-// 背景送 Make（訂單）
-async function postOrderToMake(payload){
-  try{
-    await fetch(MAKE_WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({__emailjs__:payload})});
-    document.getElementById('resultLine').innerHTML='✅ <span class="ok">成功</span>寄通知給總部';
-  }catch(_){
-    document.getElementById('resultLine').innerHTML='❌ <span class="bad">失敗</span>寄通知給總部';
-  }
+  return lines.join('\n');
 }
 
 // 嘗試開啟 LINE 並貼上文字（失敗時改導到加好友）
@@ -320,25 +287,30 @@ async function openLineAndPaste(text){
   setTimeout(()=>{ window.location.href = LINE_ADD_FRIEND_URL; },800);
 }
 
-// —— 啟動 —— //
+// 背景送 Make（訂單）
+async function postOrderToMake(payload){
+  try{
+    await fetch(MAKE_WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({__emailjs__:payload})});
+    document.getElementById('resultLine').innerHTML='✅ <span class="ok">成功</span>寄通知給總部';
+  }catch(_){
+    document.getElementById('resultLine').innerHTML='❌ <span class="bad">失敗</span>寄通知給總部';
+  }
+}
+
+// —— 啟動（保留你原本的流程） —— //
 (function init(){
   const std = readParamsStd();
   window.std = std;
 
-  // 表格（一般欄位）
-  setCellText('order_time',std.order_time);
-  setCellText('order_id',std.order_id);
-  setCellText('email',std.email);
-  setCellText('store_name',std.store_name);
-  setCellText('delivery_method',std.delivery_method);
-  setCellText('pickup_note',std.pickup_note);
-  setCellText('shipping_fee',std.shipping_fee);
-  setCellText('total_amount',std.total_amount);
-
-  // 商品明細：數字清單（標籤在左；自動分段）
+  // 表格
+  setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
+  setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
+  setCell('pickup_note',std.pickup_note); 
+  // ★ 商品明細改成：自動分段 → 數字清單（其餘不動）
   setCellHTML('orders', formatOrdersHTML(std.orders||''));
+  setCell('shipping_fee',std.shipping_fee); setCell('total_amount',std.total_amount);
 
-  // 通知防呆 + 背景送 Make
+  // 訂單通知防呆（需要有效 email）
   const okEmail = isValidEmail(std.email);
   if(!okEmail){
     showGuard('未檢測到有效的 <b>信箱</b>，本次不會通知總部（避免寄出空白/錯誤資料）。<br>請確認 Glide 帶入參數包含 <code>email</code> 或顛倒格式中含「信箱」。');
@@ -346,7 +318,8 @@ async function openLineAndPaste(text){
   }else{
     hideGuard();
     document.getElementById('resultLine').innerHTML='已檢核通過，正在通知總部…';
-    postOrderToMake(buildOrderPayload(std));
+    const payload = buildOrderPayload(std);
+    postOrderToMake(payload);
   }
 
   // 事件：複製帳號
@@ -358,7 +331,7 @@ async function openLineAndPaste(text){
 
   // 事件：上傳後五碼（開啟 LINE）
   document.getElementById('btnSendLast5')?.addEventListener('click', ()=>{
-    const text = buildLineText(std);   // 數字條列 + 段落
+    const text = buildLineText(std);
     openLineAndPaste(text);
   });
 })();

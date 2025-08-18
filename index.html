@@ -61,7 +61,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 }
 .sticky-actions .btn{flex:1}
 
-/* 手機：整體置中（清單內容維持左對齊） */
+/* 手機：整體置中（清單內容維持左對齊更好讀） */
 @media (max-width: 480px){
   .card{margin-left:auto;margin-right:auto;}
   .table th,.table td{ text-align:center; }
@@ -88,7 +88,10 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
   list-style: decimal;
   list-style-position: outside;
 }
-.orders-list li{ margin: 3px 0; line-height: 1.6; }
+.orders-list li{
+  margin: 3px 0;
+  line-height: 1.6;
+}
 </style>
 </head>
 <body>
@@ -142,7 +145,6 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 <script>
 // ====== 你只需要改這裡（Make 設定）======
 const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/mxd447qyeae62is1m1vsutndp3bqhudf";
-// ====== LINE 官方帳號連結（加好友 / 後備跳轉）======
 const LINE_ADD_FRIEND_URL = "https://lin.ee/RTMwUYu";
 // ===============================================
 
@@ -153,7 +155,7 @@ const enToStd = {
   pickup_note:'pickup_note', order_details:'orders',
   shipping:'shipping_fee', total:'total_amount'
 };
-// 中文欄位名 → 內部標準鍵（顛倒格式）
+// 中文欄位名 → 內部標準鍵（顛倒格式用到）
 const zhToStd = {
   "訂單時間":"order_time","訂單編號":"order_id","信箱":"email","分店名稱":"store_name",
   "寄貨方式":"delivery_method","取貨備註":"pickup_note","商品明細":"orders",
@@ -169,13 +171,29 @@ function showGuard(html){ const box=document.getElementById('guardMsg'); box.sty
 function hideGuard(){ const box=document.getElementById('guardMsg'); box.style.display='none'; box.innerHTML=''; }
 function escapeHTML(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-// 解析網址（支援英文鍵與顛倒格式）
+// 解析網址（支援：英文鍵、中文鍵=值、顛倒格式 值=中文鍵）
 function readParamsStd(){
   const std={}, usp=new URLSearchParams(location.search.startsWith('?')?location.search.slice(1):location.search);
-  // 英文鍵
-  usp.forEach((v,k)=>{ const key=decodeQS(k).trim(), val=decodeQS(v).trim(); if(key in enToStd) std[enToStd[key]]=val; });
-  // 顛倒格式：中文→值
-  usp.forEach((v,k)=>{ const maybeValue=decodeQS(k).trim(), maybeLabel=decodeQS(v).trim(); const stdKey=zhToStd[maybeLabel]; if(stdKey && (std[stdKey]==null||std[stdKey]==='')) std[stdKey]=maybeValue; });
+
+  // 1) 英文鍵
+  usp.forEach((v,k)=>{
+    const key=decodeQS(k).trim(), val=decodeQS(v).trim();
+    if(key in enToStd && val!=='') std[enToStd[key]]=val;
+  });
+
+  // 2) 正常中文鍵=值
+  usp.forEach((v,k)=>{
+    const key=decodeQS(k).trim(), val=decodeQS(v).trim();
+    if(key in zhToStd && (std[zhToStd[key]]==null||std[zhToStd[key]]==='')) std[zhToStd[key]]=val;
+  });
+
+  // 3) 顛倒格式（值=中文鍵）
+  usp.forEach((v,k)=>{
+    const maybeValue=decodeQS(k).trim(), maybeLabel=decodeQS(v).trim();
+    const stdKey=zhToStd[maybeLabel];
+    if(stdKey && (std[stdKey]==null||std[stdKey]==='')) std[stdKey]=maybeValue;
+  });
+
   return std;
 }
 
@@ -206,7 +224,7 @@ function parseOrders(raw){
     let qty      = (m[3]||'').trim();
     let trailTag = (m[4]||'').trim();
 
-    // 如果品名本身以（標籤）開頭，抽出成標籤（避免重複）
+    // 若品名本身以（標籤）開頭，抽出成標籤（避免重複）
     name = name.replace(/^\s*[（(]\s*([^（）)]+?)\s*[）)]\s*/, (_, tagInName)=>{
       if (!leadTag && !trailTag) leadTag = (tagInName||'').trim();
       return '';
@@ -240,6 +258,19 @@ function formatOrdersText(raw){
   }).join('\n');
 }
 
+// 組訂單 payload（給 Make 訂單用）
+function buildOrderPayload(std){
+  return {
+    '訂單時間':std.order_time||'','訂單編號':std.order_id||'','信箱':std.email||'','分店名稱':std.store_name||'',
+    '寄貨方式':std.delivery_method||'','取貨備註':std.pickup_note||'','商品明細':std.orders||'',
+    '實際運費':std.shipping_fee||'','總計金額':std.total_amount||'',
+    order_time:std.order_time||'', order_id:std.order_id||'', email:std.email||'', store_name:std.store_name||'',
+    delivery_method:std.delivery_method||'', pickup_note:std.pickup_note||'', orders:std.orders||'',
+    shipping_fee:std.shipping_fee||'', total_amount:std.total_amount||'',
+    _source_url:location.href
+  };
+}
+
 // 建立 LINE 文字（保留段落）
 function buildLineText(std){
   const ordersBlock = formatOrdersText(std.orders||'');
@@ -261,19 +292,6 @@ function buildLineText(std){
     '匯款後五碼：'
   ];
   return [...linesTop, ...linesBottom].join('\n');
-}
-
-// 組訂單 payload（給 Make 訂單用）
-function buildOrderPayload(std){
-  return {
-    '訂單時間':std.order_time||'','訂單編號':std.order_id||'','信箱':std.email||'','分店名稱':std.store_name||'',
-    '寄貨方式':std.delivery_method||'','取貨備註':std.pickup_note||'','商品明細':std.orders||'',
-    '實際運費':std.shipping_fee||'','總計金額':std.total_amount||'',
-    order_time:std.order_time||'', order_id:std.order_id||'', email:std.email||'', store_name:std.store_name||'',
-    delivery_method:std.delivery_method||'', pickup_note:std.pickup_note||'', orders:std.orders||'',
-    shipping_fee:std.shipping_fee||'', total_amount:std.total_amount||'',
-    _source_url:location.href
-  };
 }
 
 // 背景送 Make（訂單）
@@ -333,7 +351,8 @@ async function openLineAndPaste(text){
 
   // 事件：複製帳號
   document.getElementById('copyBtn')?.addEventListener('click', async (e)=>{
-    const btn=e.currentTarget, acct=document.getElementById('bank_acct_txt').textContent.trim();
+    const btn = e.currentTarget;
+    const acct=document.getElementById('bank_acct_txt').textContent.trim();
     try{ await navigator.clipboard.writeText(acct); btn.textContent='已複製！'; setTimeout(()=> btn.textContent='複製帳號',1200); }catch{}
   });
 

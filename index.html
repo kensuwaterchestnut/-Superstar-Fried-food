@@ -60,14 +60,6 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
   display:flex; gap:10px; flex-wrap:wrap;
 }
 .sticky-actions .btn{flex:1}
-
-/* 手機：整體置中（但清單內容維持左對齊，較好讀） */
-@media (max-width: 480px){
-  .card{margin-left:auto;margin-right:auto;}
-  .table th,.table td{ text-align:center; }
-  .table td .orders-list{ display:inline-block; text-align:left; }
-}
-
 @media (min-width:640px){
   .wrap{margin:48px auto;padding:0 16px}
   .card{padding:28px}
@@ -83,12 +75,12 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 
 /* 商品明細：數字清單（畫面） */
 .orders-list{
-  margin: 0;
-  padding-left: 1.5em;
-  list-style: decimal;
-  list-style-position: outside;
+  margin:0;
+  padding-left:1.5em;
+  list-style:decimal;
+  list-style-position:outside;
 }
-.orders-list li{ margin: 3px 0; line-height: 1.6; }
+.orders-list li{ margin:3px 0; line-height:1.6; }
 </style>
 </head>
 <body>
@@ -161,16 +153,22 @@ const zhToStd = {
   "實際運費":"shipping_fee","總計金額":"total_amount"
 };
 
-// 工具（保持原本）——
+// 工具（維持你原本）
 function decodeQS(s){ try{ return decodeURIComponent(String(s||'').replace(/\+/g,' ')); }catch{ return String(s||''); } }
 function setCell(id,val){ const el=document.getElementById(id); const v=(val==null||val==='')?'（空）':String(val); el.textContent=v; el.classList.toggle('muted',v==='（空）'); }
 function isValidEmail(s){ return !!(s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())); }
 function showGuard(html){ const box=document.getElementById('guardMsg'); box.style.display='block'; box.innerHTML=html; }
 function hideGuard(){ const box=document.getElementById('guardMsg'); box.style.display='none'; box.innerHTML=''; }
-// 新增：安全塞入 HTML 用
-function setCellHTML(id, html){ const el=document.getElementById(id); const ok=html && String(html).trim()!==''; if(ok){ el.innerHTML=html; el.classList.remove('muted'); } else { el.textContent='（空）'; el.classList.add('muted'); } }
 
-// 解析網址（支援英文鍵與「顛倒格式」；※保持你最初的寫法，不動！）
+// ★ 新增：安全塞入 HTML（給商品明細使用）
+function setCellHTML(id, html){
+  const el = document.getElementById(id);
+  if(html && String(html).trim()!==''){ el.innerHTML = html; el.classList.remove('muted'); }
+  else { el.textContent = '（空）'; el.classList.add('muted'); }
+}
+function escapeHTML(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+// 解析網址（支援英文鍵與顛倒格式）—保持你原本的寫法
 function readParamsStd(){
   const std={}, usp=new URLSearchParams(location.search.startsWith('?')?location.search.slice(1):location.search);
   usp.forEach((v,k)=>{ const key=decodeQS(k).trim(), val=decodeQS(v).trim(); if(key in enToStd) std[enToStd[key]]=val; });
@@ -178,10 +176,12 @@ function readParamsStd(){
   return std;
 }
 
-/* ===== 商品明細解析（最小新增） =====
-   1) 支援「（整件）品名 x 3」或「品名 x 3 （單品項）」或「品名 x 3」
-   2) 分隔符支援 x / X / ×
-   3) 只顯示一個標籤（避免重複）
+/* === 新增：商品明細解析 ===
+   支援：
+   - （整件）品名 x 3
+   - 品名 x 3 （單品項）
+   - 品名 x 3
+   分隔符支援 x / X / ×；只顯示一個標籤（避免重複）
 */
 function parseOrders(raw){
   let t = String(raw||'')
@@ -190,46 +190,38 @@ function parseOrders(raw){
     .trim();
 
   const items = [];
-  const re = /(?:[（(]\s*([^（）)]+?)\s*[）)])?\s*   # 前置標籤(可無)
-              (.+?)\s*                              # 品名
-              [xX×]\s*(\d+)                         # 數量
-              (?:\s*[（(]\s*([^（）)]+?)\s*[）)])?   # 後置標籤(可無)
-             /gx;
+  const re = /(?:[（(]\s*([^（）)]+?)\s*[）)])?\s*(.+?)\s*[xX×]\s*(\d+)(?:\s*[（(]\s*([^（）)]+?)\s*[）)])?/gx;
 
   let m;
-  while ((m = re.exec(t))) {
-    let leadTag  = (m[1]||'').trim();
-    let name     = (m[2]||'').trim();
-    let qty      = (m[3]||'').trim();
-    let trailTag = (m[4]||'').trim();
+  while((m = re.exec(t))){
+    let leadTag=(m[1]||'').trim(), name=(m[2]||'').trim(), qty=(m[3]||'').trim(), trailTag=(m[4]||'').trim();
 
-    // 若品名本身以（標籤）開頭，抽出當標籤（避免重複）
-    name = name.replace(/^\s*[（(]\s*([^（）)]+?)\s*[）)]\s*/, (_, tg)=>{
-      if (!leadTag && !trailTag) leadTag = (tg||'').trim();
+    // 如果品名本身以（標籤）開頭，就抽出當標籤（避免重複）
+    name = name.replace(/^\s*[（(]\s*([^（）)]+?)\s*[）)]\s*/, (_,tg)=>{
+      if(!leadTag && !trailTag) leadTag = (tg||'').trim();
       return '';
     }).trim();
 
     const tag = leadTag || trailTag || '';
     name = name.replace(/\s*[xX×]\s*$/,'');
-    items.push({ name, qty, tag });
+    items.push({name, qty, tag});
   }
-
-  if (items.length===0 && t) items.push({ name:t, qty:'', tag:'' });
+  if(items.length===0 && t) items.push({name:t, qty:'', tag:''});
   return items;
 }
 
-// 畫面：輸出數字清單（標籤在左）
+// 畫面：數字清單（標籤在左）
 function formatOrdersHTML(raw){
   const items = parseOrders(raw);
-  if (!items.length) return '';
+  if(!items.length) return '';
   const lis = items.map(it=>{
-    const tag = it.tag ? `（${it.tag}）` : '';
-    return `<li>${tag}${it.name} × ${it.qty}</li>`;
+    const tag = it.tag ? `（${escapeHTML(it.tag)}）` : '';
+    return `<li>${tag}${escapeHTML(it.name)} × ${escapeHTML(it.qty)}</li>`;
   }).join('');
   return `<ol class="orders-list">${lis}</ol>`;
 }
 
-// 複製到 LINE：輸出多行數字條列
+// 複製到 LINE：多行數字條列
 function formatOrdersText(raw){
   const items = parseOrders(raw);
   return items.map((it,i)=>{
@@ -238,7 +230,7 @@ function formatOrdersText(raw){
   }).join('\n');
 }
 
-// 組訂單 payload（給 Make 訂單用）
+// 組訂單 payload（給 Make 訂單用）—保持原本
 function buildOrderPayload(std){
   return {
     '訂單時間':std.order_time||'','訂單編號':std.order_id||'','信箱':std.email||'','分店名稱':std.store_name||'',
@@ -251,7 +243,7 @@ function buildOrderPayload(std){
   };
 }
 
-// 建立要貼到 LINE 的完整明細文字（保持你原本格式，只把商品明細改成多行數字條列）
+// 建立要貼到 LINE 的完整明細文字（商品明細→條列）
 function buildLineText(std){
   const lines = [
     '【匯款後五碼回報】',
@@ -262,7 +254,7 @@ function buildLineText(std){
     `寄貨方式：${std.delivery_method||''}`,
     `取貨備註：${std.pickup_note||''}`,
     '商品明細：',
-    formatOrdersText(std.orders||''),   // ← 改為多行數字條列
+    formatOrdersText(std.orders||''), // ← 多行數字條列
     '',
     `實際運費：${std.shipping_fee||''}`,
     `總計金額：${std.total_amount||''}`,
@@ -297,7 +289,7 @@ async function postOrderToMake(payload){
   }
 }
 
-// —— 啟動（保留你原本的流程） —— //
+// 啟動（維持你原本流程）
 (function init(){
   const std = readParamsStd();
   window.std = std;
@@ -305,8 +297,8 @@ async function postOrderToMake(payload){
   // 表格
   setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
   setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
-  setCell('pickup_note',std.pickup_note); 
-  // ★ 商品明細改成：自動分段 → 數字清單（其餘不動）
+  setCell('pickup_note',std.pickup_note);
+  // ★ 僅此處改為清單顯示
   setCellHTML('orders', formatOrdersHTML(std.orders||''));
   setCell('shipping_fee',std.shipping_fee); setCell('total_amount',std.total_amount);
 

@@ -164,7 +164,11 @@ function isValidEmail(s){ return !!(s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.tri
 function showGuard(html){ const box=document.getElementById('guardMsg'); box.style.display='block'; box.innerHTML=html; }
 function hideGuard(){ const box=document.getElementById('guardMsg'); box.style.display='none'; box.innerHTML=''; }
 function setCellHTML(id, html){ const el=document.getElementById(id); const ok = html && String(html).trim()!==''; if(ok){ el.innerHTML=html; el.classList.remove('muted'); } else { el.textContent='（空）'; el.classList.add('muted'); } }
-function escapeHTML(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;'); }
+function escapeHTML(s){
+  return String(s||'').replace(/[&<>\"']/g, function(m){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+  });
+}
 
 // 取得 query（支援 ? 與 #；容忍前面 ?&）
 function getQueryString(){
@@ -255,40 +259,33 @@ function formatOrdersHTML(raw){
   return `<ol class="orders-list">${lis}</ol>`;
 }
 
-// ✅ Email 專用（inline style）HTML 清單（保留給之後需要 HTML 的情境）
-function formatOrdersHTML_email(raw){
-  const items = parseOrders(raw);
-  if(!items.length) return '';
-  const lis = items.map(it=>{
-    const tag   = it.tag ? `（${escapeHTML(it.tag)}）` : '';
-    const price = it.price ? ` = ${escapeHTML(it.price)}` : '';
-    return `<li style="margin:3px 0;line-height:1.6">${tag}${escapeHTML(it.name)} × ${escapeHTML(it.qty)}${price}</li>`;
-  }).join('');
-  return `<ol style="margin:0;padding-left:1.5em;list-style:decimal;list-style-position:outside">${lis}</ol>`;
-}
-
-// ✅ 純文字（含換行）給 EmailJS 用於 white-space: pre-line
+// 純文字（含換行），給 LINE 與 EmailJS（pre-line 顯示）
 function formatOrdersText(raw){
   const items = parseOrders(raw);
-  return items.map((it,i)=>`${i+1}. ${it.tag?`（${it.tag}）`:''}${it.name} × ${it.qty}${it.price?` = ${it.price}`:''}`).join('\n');
+  return items.map((it,i)=>
+    `${i+1}. ${it.tag?`（${it.tag}）`:''}${it.name} × ${it.qty}${it.price?` = ${it.price}`:''}`
+  ).join('\n');
 }
 
-// 組訂單 payload（Solution 1：把「商品明細」改成多行文字）
-function buildOrderPayload(std){
-  return {
-    '訂單時間':std.order_time||'', '訂單編號':std.order_id||'', '信箱':std.email||'', '分店名稱':std.store_name||'',
-    '寄貨方式':std.delivery_method||'', '取貨備註':std.pickup_note||'',
-    '商品明細': formatOrdersText(std.orders||''), // ← 送【多行文字】到 Make / EmailJS
-    '實際運費':std.shipping_fee||'', '總計金額':std.total_amount||'',
+// 讓多行文字變成 JSON-safe（\\n 兩個字元）
+function jsonSafeNewlines(s){
+  return String(s||'').replace(/\r/g,'').replace(/\n/g,'\\n');
+}
 
-    // 英文鍵（保留）
+// 組訂單 payload（加入 商品明細_json 給 HTTP Raw JSON 使用）
+function buildOrderPayload(std){
+  const textList = formatOrdersText(std.orders||''); // 多行純文字 (含真正換行)
+  return {
+    '訂單時間':std.order_time||'','訂單編號':std.order_id||'','信箱':std.email||'','分店名稱':std.store_name||'',
+    '寄貨方式':std.delivery_method||'','取貨備註':std.pickup_note||'',
+    '商品明細': textList,                           // 人看用（真換行）
+    '商品明細_json': jsonSafeNewlines(textList),     // ★ HTTP Raw JSON 用（\\n）
+    '實際運費':std.shipping_fee||'','總計金額':std.total_amount||'',
+
+    // 英文鍵原樣保留
     order_time:std.order_time||'', order_id:std.order_id||'', email:std.email||'', store_name:std.store_name||'',
     delivery_method:std.delivery_method||'', pickup_note:std.pickup_note||'', orders:std.orders||'',
     shipping_fee:std.shipping_fee||'', total_amount:std.total_amount||'',
-
-    // 額外附上 HTML 版本（給你之後若要切換用）：
-    order_details_html: formatOrdersHTML_email(std.orders||''),
-
     _source_url:location.href
   };
 }

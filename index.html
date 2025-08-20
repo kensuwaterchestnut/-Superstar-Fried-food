@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>訂單明細</title>
+<title>叫貨明細</title>
 <style>
 :root{--border:#e5e7eb;--muted:#6b7280;--text:#111827;--ok:#059669;--bad:#b91c1c;--brand:#3b82f6;--bg:#f8fafc;--surface:#fff}
 *{box-sizing:border-box}
@@ -213,11 +213,10 @@ function parseOrders(raw){
   let t = String(raw || '').replace(/\s+/g,' ').trim();
   if (!t) return [];
 
-  // 先把尾端可能殘留的乘號去掉（例如 "... = $600 ×"）
+  // 去掉尾端殘留乘號（例如 "... = $600 ×"）
   t = t.replace(/\s*[xX×]\s*$/, '');
 
-  // 在「×/x + 數量 +（可選）= 金額」之後，若後面緊接下一個品項開頭（中文/括號/英文），插入分隔符 |
-  // 例："… x 1=$2,400加厚蝦餅…" → "… x 1=$2,400|加厚蝦餅…"
+  // 在「×/x + 數量 +（可選）= 金額」後、若後面接下一個品項（中文/括號/英文），插入分隔符 |
   t = t.replace(
     /([xX×]\s*\d+(?:\s*=\s*[\$＄]?\s*[\d,]+)?)(?=\s*(?:[（(]|[\u4E00-\u9FFFA-Za-z]))/g,
     '$1|'
@@ -227,7 +226,7 @@ function parseOrders(raw){
   const items = [];
 
   for (const ch of chunks){
-    // 允許：可選標籤 + 品名 + ×/x 數量 +（可選）= 金額
+    // 可選標籤 + 品名 + ×/x 數量 +（可選）= 金額
     const m = ch.match(
       /^(?:[（(]\s*([^（）)]+?)\s*[）)])?\s*(.*?)\s*[xX×]\s*(\d+)(?:\s*=\s*([\$＄]?\s*[\d,]+))?\s*$/
     );
@@ -239,7 +238,6 @@ function parseOrders(raw){
       if (!ALLOWED_TAGS.has(tag)) tag = '';
       items.push({ name, qty, tag, price });
     }else{
-      // 沒對到也保留內容
       items.push({ name: ch.replace(/\s*[xX×]\s*$/,''), qty:'', tag:'', price:'' });
     }
   }
@@ -257,6 +255,18 @@ function formatOrdersHTML(raw){
   return `<ol class="orders-list">${lis}</ol>`;
 }
 
+// ✅ 新增：Email 專用（inline style）HTML 清單，送到 Make/EmailJS
+function formatOrdersHTML_email(raw){
+  const items = parseOrders(raw);
+  if(!items.length) return '';
+  const lis = items.map(it=>{
+    const tag   = it.tag ? `（${escapeHTML(it.tag)}）` : '';
+    const price = it.price ? ` = ${escapeHTML(it.price)}` : '';
+    return `<li style="margin:3px 0;line-height:1.6">${tag}${escapeHTML(it.name)} × ${escapeHTML(it.qty)}${price}</li>`;
+  }).join('');
+  return `<ol style="margin:0;padding-left:1.5em;list-style:decimal;list-style-position:outside">${lis}</ol>`;
+}
+
 function formatOrdersText(raw){
   const items = parseOrders(raw);
   return items.map((it,i)=>
@@ -264,11 +274,13 @@ function formatOrdersText(raw){
   ).join('\n');
 }
 
-// 組訂單 payload（原樣）
+// 組訂單 payload（原樣 + 把「商品明細」改為 Email 用 HTML）
 function buildOrderPayload(std){
   return {
     '訂單時間':std.order_time||'','訂單編號':std.order_id||'','信箱':std.email||'','分店名稱':std.store_name||'',
-    '寄貨方式':std.delivery_method||'','取貨備註':std.pickup_note||'','商品明細':std.orders||'',
+    '寄貨方式':std.delivery_method||'','取貨備註':std.pickup_note||'',
+    // ⬇️ 改這行：送 HTML 清單到 Make
+    '商品明細': formatOrdersHTML_email(std.orders||''),
     '實際運費':std.shipping_fee||'','總計金額':std.total_amount||'',
     order_time:std.order_time||'', order_id:std.order_id||'', email:std.email||'', store_name:std.store_name||'',
     delivery_method:std.delivery_method||'', pickup_note:std.pickup_note||'', orders:std.orders||'',
@@ -374,7 +386,7 @@ async function captureAndDownload(){
   const std = readParamsStd();
   window.std = std;
 
-  // 表格
+  // 表格（畫面上仍用原本的 formatOrdersHTML）
   setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
   setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
   setCell('pickup_note',std.pickup_note);

@@ -218,7 +218,7 @@ function parseOrders(raw){
 
   // 在「×/x + 數量 +（可選）= 金額」後、若後面接下一個品項（中文/括號/英文），插入分隔符 |
   t = t.replace(
-    /([xX×]\s*\d+(?:\s*=\s*[\$＄]?\s*[\d,]+)?)(?=\s*(?:[（(]|[\u4E00-\u9FFFA-Za-z]))/g,
+    /([xX×]\s*\d+(?:\s*=\s*[\$＄]?\s*[\d,]+)?)(?=\s*(?:[（(]|[A-Za-z\u4E00-\u9FFF]))/g,
     '$1|'
   );
 
@@ -255,7 +255,7 @@ function formatOrdersHTML(raw){
   return `<ol class="orders-list">${lis}</ol>`;
 }
 
-// ✅ 新增：Email 專用（inline style）HTML 清單，送到 Make/EmailJS
+// ✅ Email 專用（inline style）HTML 清單，送到 Make/EmailJS
 function formatOrdersHTML_email(raw){
   const items = parseOrders(raw);
   if(!items.length) return '';
@@ -274,13 +274,12 @@ function formatOrdersText(raw){
   ).join('\n');
 }
 
-// 組訂單 payload（原樣 + 把「商品明細」改為 Email 用 HTML）
+// 組訂單 payload（把「商品明細」改為 Email 用 HTML）
 function buildOrderPayload(std){
   return {
     '訂單時間':std.order_time||'','訂單編號':std.order_id||'','信箱':std.email||'','分店名稱':std.store_name||'',
     '寄貨方式':std.delivery_method||'','取貨備註':std.pickup_note||'',
-    // ⬇️ 改這行：送 HTML 清單到 Make
-    '商品明細': formatOrdersHTML_email(std.orders||''),
+    '商品明細': formatOrdersHTML_email(std.orders||''), // ← 重點：送 HTML 清單
     '實際運費':std.shipping_fee||'','總計金額':std.total_amount||'',
     order_time:std.order_time||'', order_id:std.order_id||'', email:std.email||'', store_name:std.store_name||'',
     delivery_method:std.delivery_method||'', pickup_note:std.pickup_note||'', orders:std.orders||'',

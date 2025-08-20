@@ -85,7 +85,7 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 .orders-list li{margin:3px 0;line-height:1.6}
 </style>
 
-<!-- 加入 html2canvas（供一鍵截圖用） -->
+<!-- 一鍵截圖用 -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
 </head>
 <body>
@@ -115,7 +115,6 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
     <!-- 置頂固定操作列 -->
     <div class="sticky-actions">
       <button id="btnSendLast5" class="btn btn-primary" type="button">上傳後五碼（開啟 LINE）</button>
-      <!-- 新增：一鍵截圖 -->
       <button id="snapBtn" class="btn" type="button">一鍵截圖訂單</button>
     </div>
 
@@ -207,47 +206,62 @@ function readParamsStd(){
   return std;
 }
 
-/* ===== 商品明細解析（保留括號；x/X/×；標籤可前可後） ===== */
-/* 只把「整件 / 單品項」視為品項標籤，其它括號視為品名的一部分 */
+/* ===== 商品明細解析（保留括號；x/X/×；可含 = 金額；穩定分段） ===== */
 const ALLOWED_TAGS = new Set(['整件','單品項']);
 
 function parseOrders(raw){
   let t = String(raw || '').replace(/\s+/g,' ').trim();
   if (!t) return [];
 
-  // 強化分段：數量後 → （ 或 ( 或 中文；允許中間有空白
-  t = t.replace(/([xX×]\s*\d+)\s*(?=\s*(?:[（(]|[\u4E00-\u9FFF]))/g, '$1|');
+  // 先把尾端可能殘留的乘號去掉（例如 "... = $600 ×"）
+  t = t.replace(/\s*[xX×]\s*$/, '');
+
+  // 在「×/x + 數量 +（可選）= 金額」之後，若後面緊接下一個品項開頭（中文/括號/英文），插入分隔符 |
+  // 例："… x 1=$2,400加厚蝦餅…" → "… x 1=$2,400|加厚蝦餅…"
+  t = t.replace(
+    /([xX×]\s*\d+(?:\s*=\s*[\$＄]?\s*[\d,]+)?)(?=\s*(?:[（(]|[\u4E00-\u9FFFA-Za-z]))/g,
+    '$1|'
+  );
 
   const chunks = t.split('|').map(s => s.trim()).filter(Boolean);
   const items = [];
 
   for (const ch of chunks){
-    // 只把 (整件)/(單品項) 當標籤；其它括號保留在品名
-    const m = ch.match(/^(?:[（(]\s*([^（）)]+?)\s*[）)])?\s*(.*?)\s*[xX×]\s*(\d+)\s*$/);
+    // 允許：可選標籤 + 品名 + ×/x 數量 +（可選）= 金額
+    const m = ch.match(
+      /^(?:[（(]\s*([^（）)]+?)\s*[）)])?\s*(.*?)\s*[xX×]\s*(\d+)(?:\s*=\s*([\$＄]?\s*[\d,]+))?\s*$/
+    );
     if (m){
-      let tag = (m[1] || '').trim();
-      const name = (m[2] || '').trim().replace(/\s*[xX×]\s*$/,'');
-      const qty  = (m[3] || '').trim();
+      let tag   = (m[1] || '').trim();
+      const name  = (m[2] || '').trim().replace(/\s*[xX×]\s*$/,'');
+      const qty   = (m[3] || '').trim();
+      const price = (m[4] || '').trim();
       if (!ALLOWED_TAGS.has(tag)) tag = '';
-      items.push({ name, qty, tag });
+      items.push({ name, qty, tag, price });
     }else{
-      items.push({ name: ch, qty: '', tag: '' }); // 萬一沒對到也不丟資料
+      // 沒對到也保留內容
+      items.push({ name: ch.replace(/\s*[xX×]\s*$/,''), qty:'', tag:'', price:'' });
     }
   }
   return items;
 }
+
 function formatOrdersHTML(raw){
-  const items=parseOrders(raw);
+  const items = parseOrders(raw);
   if(!items.length) return '';
   const lis = items.map(it=>{
-    const tag = it.tag ? `（${escapeHTML(it.tag)}）` : '';
-    return `<li>${tag}${escapeHTML(it.name)} × ${escapeHTML(it.qty)}</li>`;
+    const tag   = it.tag ? `（${escapeHTML(it.tag)}）` : '';
+    const price = it.price ? ` = ${escapeHTML(it.price)}` : '';
+    return `<li>${tag}${escapeHTML(it.name)} × ${escapeHTML(it.qty)}${price}</li>`;
   }).join('');
   return `<ol class="orders-list">${lis}</ol>`;
 }
+
 function formatOrdersText(raw){
-  const items=parseOrders(raw);
-  return items.map((it,i)=>`${i+1}. ${it.tag?`（${it.tag}）`:''}${it.name} × ${it.qty}`).join('\n');
+  const items = parseOrders(raw);
+  return items.map((it,i)=>
+    `${i+1}. ${it.tag?`（${it.tag}）`:''}${it.name} × ${it.qty}${it.price?` = ${it.price}`:''}`
+  ).join('\n');
 }
 
 // 組訂單 payload（原樣）
@@ -309,7 +323,7 @@ async function postOrderToMake(payload){
   }
 }
 
-/* ====== 一鍵截圖下載 ====== */
+/* ====== 一鍵截圖下載（原樣保留） ====== */
 async function captureAndDownload(){
   const btnSnap = document.getElementById('snapBtn');
   const btnLine = document.getElementById('btnSendLast5');
@@ -317,16 +331,12 @@ async function captureAndDownload(){
     document.querySelector('[data-capture="order"]') ||
     document.querySelector('.card') || document.body;
 
-  // 暫時隱藏按鈕，避免拍到
   const prev1 = btnSnap ? btnSnap.style.visibility : '';
   const prev2 = btnLine ? btnLine.style.visibility : '';
   if(btnSnap) btnSnap.style.visibility = 'hidden';
   if(btnLine) btnLine.style.visibility = 'hidden';
 
-  // 讓畫面穩定在頂部
   window.scrollTo({ top: 0, behavior: 'instant' });
-
-  // 提高解析度（最多 2x）
   const scale = Math.min(2, window.devicePixelRatio || 1.5);
 
   try{
@@ -368,7 +378,7 @@ async function captureAndDownload(){
   setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
   setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
   setCell('pickup_note',std.pickup_note);
-  setCellHTML('orders', formatOrdersHTML(std.orders||'')); // 商品明細：清單化
+  setCellHTML('orders', formatOrdersHTML(std.orders||'')); // 商品明細：清單化（保留 = 金額）
   setCell('shipping_fee',std.shipping_fee); setCell('total_amount',std.total_amount);
 
   // 訂單通知防呆（需要有效 email）

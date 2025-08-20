@@ -84,10 +84,14 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
 .orders-list{margin:0;padding-left:1.5em;list-style:decimal;list-style-position:outside}
 .orders-list li{margin:3px 0;line-height:1.6}
 </style>
+
+<!-- 加入 html2canvas（供一鍵截圖用） -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
 </head>
 <body>
 <div class="wrap">
-  <div class="card">
+  <!-- 標記截圖範圍 -->
+  <div class="card" data-capture="order">
     <h1>叫貨明細</h1>
     <p class="hint">以下為本次訂單資訊：</p>
 
@@ -108,9 +112,11 @@ code{background:#f3f4f6;border:1px solid var(--border);padding:2px 6px;border-ra
       </ul>
     </div>
 
-    <!-- 置頂固定操作列：只留「上傳後五碼（開啟 LINE）」 -->
+    <!-- 置頂固定操作列 -->
     <div class="sticky-actions">
       <button id="btnSendLast5" class="btn btn-primary" type="button">上傳後五碼（開啟 LINE）</button>
+      <!-- 新增：一鍵截圖 -->
+      <button id="snapBtn" class="btn" type="button">一鍵截圖訂單</button>
     </div>
 
     <div id="guardMsg" class="notice warn small" style="display:none;"></div>
@@ -303,6 +309,56 @@ async function postOrderToMake(payload){
   }
 }
 
+/* ====== 一鍵截圖下載 ====== */
+async function captureAndDownload(){
+  const btnSnap = document.getElementById('snapBtn');
+  const btnLine = document.getElementById('btnSendLast5');
+  const target =
+    document.querySelector('[data-capture="order"]') ||
+    document.querySelector('.card') || document.body;
+
+  // 暫時隱藏按鈕，避免拍到
+  const prev1 = btnSnap ? btnSnap.style.visibility : '';
+  const prev2 = btnLine ? btnLine.style.visibility : '';
+  if(btnSnap) btnSnap.style.visibility = 'hidden';
+  if(btnLine) btnLine.style.visibility = 'hidden';
+
+  // 讓畫面穩定在頂部
+  window.scrollTo({ top: 0, behavior: 'instant' });
+
+  // 提高解析度（最多 2x）
+  const scale = Math.min(2, window.devicePixelRatio || 1.5);
+
+  try{
+    const canvas = await html2canvas(target, {
+      backgroundColor:'#ffffff',
+      scale,
+      useCORS:true,
+      allowTaint:false,
+      logging:false,
+      windowWidth:document.documentElement.scrollWidth,
+      windowHeight:document.documentElement.scrollHeight
+    });
+
+    const a = document.createElement('a');
+    const ts = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const id = (window.std && window.std.order_id) ? String(window.std.order_id) : '未命名';
+    const filename = `訂單明細_${id}_${ts.getFullYear()}-${pad(ts.getMonth()+1)}-${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}.png`;
+    a.download = filename;
+    a.href = canvas.toDataURL('image/png');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }catch(err){
+    alert('截圖失敗：' + err.message);
+    console.error(err);
+  }finally{
+    if(btnSnap) btnSnap.style.visibility = prev1;
+    if(btnLine) btnLine.style.visibility = prev2;
+  }
+}
+
 // 啟動
 (function init(){
   const std = readParamsStd();
@@ -335,6 +391,9 @@ async function postOrderToMake(payload){
   document.getElementById('btnSendLast5')?.addEventListener('click', ()=>{
     openLineAndPaste(buildLineText(std));
   });
+
+  // 事件：一鍵截圖訂單
+  document.getElementById('snapBtn')?.addEventListener('click', captureAndDownload);
 })();
 </script>
 </body>

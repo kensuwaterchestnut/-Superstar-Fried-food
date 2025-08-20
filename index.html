@@ -259,6 +259,18 @@ function formatOrdersHTML(raw){
   return `<ol class="orders-list">${lis}</ol>`;
 }
 
+// Email 專用 HTML 清單（inline style）
+function formatOrdersHTML_email(raw){
+  const items = parseOrders(raw);
+  if(!items.length) return '';
+  const lis = items.map(it=>{
+    const tag   = it.tag ? `（${escapeHTML(it.tag)}）` : '';
+    const price = it.price ? ` = ${escapeHTML(it.price)}` : '';
+    return `<li style="margin:3px 0;line-height:1.6">${tag}${escapeHTML(it.name)} × ${escapeHTML(it.qty)}${price}</li>`;
+  }).join('');
+  return `<ol style="margin:0;padding-left:1.5em;list-style:decimal;list-style-position:outside">${lis}</ol>`;
+}
+
 // 純文字（含換行），給 LINE 與 EmailJS（pre-line 顯示）
 function formatOrdersText(raw){
   const items = parseOrders(raw);
@@ -272,20 +284,36 @@ function jsonSafeNewlines(s){
   return String(s||'').replace(/\r/g,'').replace(/\n/g,'\\n');
 }
 
-// 組訂單 payload（加入 商品明細_json 給 HTTP Raw JSON 使用）
+// 組訂單 payload（同時輸出三種格式）
 function buildOrderPayload(std){
   const textList = formatOrdersText(std.orders||''); // 多行純文字 (含真正換行)
   return {
-    '訂單時間':std.order_time||'','訂單編號':std.order_id||'','信箱':std.email||'','分店名稱':std.store_name||'',
-    '寄貨方式':std.delivery_method||'','取貨備註':std.pickup_note||'',
-    '商品明細': textList,                           // 人看用（真換行）
-    '商品明細_json': jsonSafeNewlines(textList),     // ★ HTTP Raw JSON 用（\\n）
-    '實際運費':std.shipping_fee||'','總計金額':std.total_amount||'',
+    '訂單時間':std.order_time||'',
+    '訂單編號':std.order_id||'',
+    '信箱':std.email||'',
+    '分店名稱':std.store_name||'',
+    '寄貨方式':std.delivery_method||'',
+    '取貨備註':std.pickup_note||'',
+
+    // 三種型態
+    '商品明細': textList,                          // 人看用（真換行）
+    '商品明細_json': jsonSafeNewlines(textList),    // 給 HTTP Raw JSON（\\n 兩字元）
+    'order_details_html': formatOrdersHTML_email(std.orders||''), // EmailJS HTML（可 {{{
+    
+    '實際運費':std.shipping_fee||'',
+    '總計金額':std.total_amount||'',
 
     // 英文鍵原樣保留
-    order_time:std.order_time||'', order_id:std.order_id||'', email:std.email||'', store_name:std.store_name||'',
-    delivery_method:std.delivery_method||'', pickup_note:std.pickup_note||'', orders:std.orders||'',
-    shipping_fee:std.shipping_fee||'', total_amount:std.total_amount||'',
+    order_time:std.order_time||'',
+    order_id:std.order_id||'',
+    email:std.email||'',
+    store_name:std.store_name||'',
+    delivery_method:std.delivery_method||'',
+    pickup_note:std.pickup_note||'',
+    orders:std.orders||'',
+    shipping_fee:std.shipping_fee||'',
+    total_amount:std.total_amount||'',
+
     _source_url:location.href
   };
 }
@@ -329,7 +357,15 @@ async function openLineAndPaste(text){
 // 背景送 Make
 async function postOrderToMake(payload){
   try{
-    await fetch(MAKE_WEBHOOK_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({__emailjs__:payload})});
+    // 除錯：可在瀏覽器 console 檢視
+    console.log('[MAKE payload]', payload);
+    window.lastPayload = payload;
+
+    await fetch(MAKE_WEBHOOK_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({__emailjs__:payload})
+    });
     document.getElementById('resultLine').innerHTML='✅ <span class="ok">成功</span>寄通知給總部';
   }catch{
     document.getElementById('resultLine').innerHTML='❌ <span class="bad">失敗</span>寄通知給總部';
@@ -387,7 +423,7 @@ async function captureAndDownload(){
   const std = readParamsStd();
   window.std = std;
 
-  // 表格（畫面上仍用原本的 HTML 清單渲染）
+  // 畫面顯示：用 HTML 清單
   setCell('order_time',std.order_time); setCell('order_id',std.order_id); setCell('email',std.email);
   setCell('store_name',std.store_name); setCell('delivery_method',std.delivery_method);
   setCell('pickup_note',std.pickup_note);

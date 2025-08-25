@@ -298,7 +298,7 @@ function buildOrderPayload(std){
     // 三種型態
     '商品明細': textList,                          // 人看用（真換行）
     '商品明細_json': jsonSafeNewlines(textList),    // 給 HTTP Raw JSON（\\n 兩字元）
-    'order_details_html': formatOrdersHTML_email(std.orders||''), // EmailJS HTML（可 {{{
+    'order_details_html': formatOrdersHTML_email(std.orders||''), // EmailJS HTML
     
     '實際運費':std.shipping_fee||'',
     '總計金額':std.total_amount||'',
@@ -354,10 +354,27 @@ async function openLineAndPaste(text){
   setTimeout(()=>{ window.location.href = LINE_ADD_FRIEND_URL; },800);
 }
 
-// 背景送 Make
+// 背景送 Make（含去重）
 async function postOrderToMake(payload){
   try{
-    // 除錯：可在瀏覽器 console 檢視
+    // === 去重：以「訂單編號」為唯一鍵，存於 LocalStorage ===
+    const orderId = payload.order_id || payload["訂單編號"];
+    if (orderId) {
+      const KEY = "sentOrders";
+      const sentOrders = JSON.parse(localStorage.getItem(KEY) || "[]");
+      if (sentOrders.includes(orderId)) {
+        console.warn("⚠️ 訂單重複，不再觸發 Make：", orderId);
+        document.getElementById('resultLine').innerHTML = '⚠️ <span class="bad">重複訂單</span>未再次通知總部';
+        return; // 直接結束，不送 Make
+      }
+      // 記錄這筆訂單編號（先寫再送，避免重複點擊造成二次觸發）
+      sentOrders.push(orderId);
+      // 可選：控制陣列長度，避免無限成長（只保留最近 300 筆）
+      if (sentOrders.length > 300) sentOrders.splice(0, sentOrders.length - 300);
+      localStorage.setItem(KEY, JSON.stringify(sentOrders));
+    }
+
+    // === 原本送 Make 的流程 ===
     console.log('[MAKE payload]', payload);
     window.lastPayload = payload;
 
